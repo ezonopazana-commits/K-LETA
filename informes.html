@@ -55,6 +55,35 @@ tbody tr:hover { background: var(--cream-dim); }
 .tag.warn { background:rgba(217,164,65,0.18); color:#96701f; }
 .tag.bad { background:rgba(196,72,60,0.15); color:#a3382d; }
 .section-title { margin: 30px 0 14px; font-size:1.1rem; }
+.section-sub { font-size:0.82rem; color:#777; margin-top:-8px; margin-bottom:16px; }
+
+/* ---------- CRM / KPIs ---------- */
+.kpi-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:14px; margin-bottom:10px; }
+.kpi-card { background:#fff; border-radius:14px; padding:16px 18px; box-shadow:0 14px 34px -24px rgba(0,0,0,0.22); }
+.kpi-card .label { font-size:0.72rem; color:#666; text-transform:uppercase; letter-spacing:0.04em; }
+.kpi-card .value { font-family:'Fraunces',serif; font-size:1.5rem; margin-top:4px; color: var(--ink); }
+.kpi-card .sub { font-size:0.72rem; color:#999; margin-top:2px; }
+
+.two-col { display:grid; grid-template-columns:1fr 1fr; gap:22px; margin-bottom:10px; }
+@media (max-width:820px) { .two-col { grid-template-columns:1fr; } }
+
+.bar-chart { background:#fff; border-radius:14px; padding:18px 20px; box-shadow:0 14px 34px -24px rgba(0,0,0,0.22); }
+.bar-chart h3 { font-size:0.92rem; margin-bottom:14px; font-family:'Inter',sans-serif; font-weight:700; }
+.bar-row { display:flex; align-items:center; gap:10px; margin-bottom:8px; }
+.bar-row .bar-label { width:64px; font-size:0.76rem; color:#555; flex-shrink:0; }
+.bar-row .bar-track { flex-grow:1; background: var(--cream-dim); border-radius:6px; height:18px; overflow:hidden; }
+.bar-row .bar-fill { height:100%; background: linear-gradient(90deg, var(--gold-dark), var(--gold)); border-radius:6px; }
+.bar-row .bar-val { width:42px; text-align:right; font-size:0.76rem; font-weight:700; flex-shrink:0; }
+
+.rank-list { background:#fff; border-radius:14px; padding:6px 0; box-shadow:0 14px 34px -24px rgba(0,0,0,0.22); }
+.rank-row { display:flex; align-items:center; gap:12px; padding:10px 18px; border-bottom:1px solid rgba(28,31,36,0.05); }
+.rank-row:last-child { border-bottom:none; }
+.rank-num { width:22px; height:22px; border-radius:50%; background: var(--cream-dim); color:#666; font-size:0.72rem; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.rank-row:nth-child(1) .rank-num, .rank-row:nth-child(2) .rank-num { background: var(--gold); color:#fff; }
+.rank-info { flex-grow:1; }
+.rank-info .name { font-size:0.86rem; font-weight:600; }
+.rank-info .meta { font-size:0.72rem; color:#888; }
+.rank-amount { font-family:'Fraunces',serif; font-weight:700; color: var(--gold-dark); font-size:0.95rem; }
 .empty-msg { text-align:center; padding:40px; color:#777; }
 </style>
 </head>
@@ -83,6 +112,43 @@ tbody tr:hover { background: var(--cream-dim); }
     </div>
 
     <div class="summary-grid" id="summaryGrid"></div>
+
+    <h2 class="section-title">Indicadores clave (KPIs)</h2>
+    <p class="section-sub">Excluye pedidos cancelados.</p>
+    <div class="kpi-grid" id="kpiGrid"></div>
+
+    <div class="two-col">
+      <div class="bar-chart">
+        <h3>Por tipo de pedido</h3>
+        <div id="chartTipo"></div>
+      </div>
+      <div class="bar-chart">
+        <h3>Por canal de contacto</h3>
+        <div id="chartCanal"></div>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <div class="bar-chart">
+        <h3>Volumen por día de la semana</h3>
+        <div id="chartDia"></div>
+      </div>
+      <div class="bar-chart">
+        <h3>Volumen por hora del día</h3>
+        <div id="chartHora"></div>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <div>
+        <h3 class="section-title" style="margin-top:0;">Clientes recurrentes</h3>
+        <div class="rank-list" id="rankClientes"></div>
+      </div>
+      <div>
+        <h3 class="section-title" style="margin-top:0;">Productos más vendidos</h3>
+        <div class="rank-list" id="rankProductos"></div>
+      </div>
+    </div>
 
     <h2 class="section-title">Tiempo medio por tramo horario</h2>
     <div class="table-scroll">
@@ -139,6 +205,136 @@ const ESTADO_LABEL = {
   en_proceso: 'En proceso', ultimo_producto: 'Últimos detalles', listo: 'Listo',
   entregado: 'Entregado', cancelado: 'Cancelado'
 };
+
+function euros(v) { return Number(v || 0).toFixed(2).replace('.', ',') + ' €'; }
+
+const DIA_SEMANA = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
+const TIPO_COLOR_LABEL = { local: 'Local', recoger: 'Recoger', domicilio: 'Domicilio' };
+const CANAL_LABEL = { whatsapp: 'WhatsApp', email: 'Email' };
+
+function barChart(container, rows, { maxBars = 12 } = {}) {
+  const max = Math.max(...rows.map(r => r.value), 1);
+  container.innerHTML = rows.slice(0, maxBars).map(r => `
+    <div class="bar-row">
+      <span class="bar-label">${r.label}</span>
+      <span class="bar-track"><span class="bar-fill" style="width:${Math.max(4, r.value / max * 100)}%"></span></span>
+      <span class="bar-val">${r.valueLabel !== undefined ? r.valueLabel : r.value}</span>
+    </div>`).join('') || '<p style="color:#999; font-size:0.82rem;">Sin datos</p>';
+}
+
+function computeCRM(raw) {
+  const activos = raw.filter(o => o.estado !== 'cancelado');
+  const nPedidos = activos.length;
+  const importeTotal = activos.reduce((s, o) => s + Number(o.total || 0), 0);
+  const importeMedio = nPedidos ? importeTotal / nPedidos : 0;
+
+  // Clientes (por telefono o email)
+  const clientesMap = {};
+  activos.forEach(o => {
+    const key = o.contacto_telefono || o.contacto_email || 'Sin datos';
+    if (!clientesMap[key]) clientesMap[key] = { key, pedidos: 0, total: 0, primera: o.t_nuevo, ultima: o.t_nuevo };
+    clientesMap[key].pedidos += 1;
+    clientesMap[key].total += Number(o.total || 0);
+    if (o.t_nuevo < clientesMap[key].primera) clientesMap[key].primera = o.t_nuevo;
+    if (o.t_nuevo > clientesMap[key].ultima) clientesMap[key].ultima = o.t_nuevo;
+  });
+  const clientes = Object.values(clientesMap).filter(c => c.key !== 'Sin datos');
+  const clientesUnicos = clientes.length;
+  const recurrentes = clientes.filter(c => c.pedidos > 1);
+  const pctRecurrentes = clientesUnicos ? (recurrentes.length / clientesUnicos * 100) : 0;
+
+  // Por tipo de pedido
+  const porTipo = {};
+  activos.forEach(o => {
+    if (!porTipo[o.tipo]) porTipo[o.tipo] = { n: 0, total: 0 };
+    porTipo[o.tipo].n += 1; porTipo[o.tipo].total += Number(o.total || 0);
+  });
+
+  // Por canal de contacto
+  const porCanal = {};
+  activos.forEach(o => {
+    const c = o.canal_contacto || 'desconocido';
+    if (!porCanal[c]) porCanal[c] = { n: 0, total: 0 };
+    porCanal[c].n += 1; porCanal[c].total += Number(o.total || 0);
+  });
+
+  // Por dia de semana (0=lunes en nuestro array, JS getDay 0=domingo)
+  const porDia = [0,0,0,0,0,0,0];
+  activos.forEach(o => {
+    const jsDay = new Date(o.t_nuevo).getDay(); // 0=domingo..6=sabado
+    const idx = jsDay === 0 ? 6 : jsDay - 1; // reordenar a lunes=0..domingo=6
+    porDia[idx] += 1;
+  });
+
+  // Por hora
+  const porHora = {};
+  activos.forEach(o => {
+    const h = new Date(o.t_nuevo).getHours();
+    porHora[h] = (porHora[h] || 0) + 1;
+  });
+
+  // Productos mas vendidos
+  const porProducto = {};
+  activos.forEach(o => {
+    (o.items || []).forEach(it => {
+      if (!porProducto[it.nombre]) porProducto[it.nombre] = { nombre: it.nombre, unidades: 0, total: 0 };
+      porProducto[it.nombre].unidades += it.qty;
+      porProducto[it.nombre].total += it.qty * it.precio;
+    });
+  });
+
+  return {
+    nPedidos, importeTotal, importeMedio, clientesUnicos, recurrentes: recurrentes.length, pctRecurrentes,
+    porTipo, porCanal, porDia, porHora,
+    topClientes: clientes.sort((a,b) => b.pedidos - a.pedidos || b.total - a.total).slice(0, 10),
+    topProductos: Object.values(porProducto).sort((a,b) => b.unidades - a.unidades).slice(0, 10),
+  };
+}
+
+function renderCRM(raw) {
+  const c = computeCRM(raw);
+
+  document.getElementById('kpiGrid').innerHTML = `
+    <div class="kpi-card"><div class="label">Nº pedidos</div><div class="value">${c.nPedidos}</div></div>
+    <div class="kpi-card"><div class="label">Importe total</div><div class="value">${euros(c.importeTotal)}</div></div>
+    <div class="kpi-card"><div class="label">Importe medio</div><div class="value">${euros(c.importeMedio)}</div></div>
+    <div class="kpi-card"><div class="label">Clientes únicos</div><div class="value">${c.clientesUnicos}</div></div>
+    <div class="kpi-card"><div class="label">Clientes recurrentes</div><div class="value">${c.recurrentes}</div><div class="sub">${c.pctRecurrentes.toFixed(0)}% del total</div></div>
+  `;
+
+  barChart(document.getElementById('chartTipo'),
+    Object.entries(c.porTipo).map(([tipo, v]) => ({ label: TIPO_COLOR_LABEL[tipo] || tipo, value: v.n, valueLabel: `${v.n} · ${euros(v.total)}` })));
+
+  barChart(document.getElementById('chartCanal'),
+    Object.entries(c.porCanal).map(([canal, v]) => ({ label: CANAL_LABEL[canal] || canal, value: v.n, valueLabel: `${v.n} · ${euros(v.total)}` })));
+
+  barChart(document.getElementById('chartDia'),
+    DIA_SEMANA.map((d, i) => ({ label: d, value: c.porDia[i], valueLabel: c.porDia[i] })));
+
+  const horas = Object.keys(c.porHora).sort((a,b) => a-b);
+  barChart(document.getElementById('chartHora'),
+    horas.map(h => ({ label: h + ':00', value: c.porHora[h], valueLabel: c.porHora[h] })), { maxBars: 24 });
+
+  const rankClientes = document.getElementById('rankClientes');
+  rankClientes.innerHTML = c.topClientes.length ? c.topClientes.map((cl, i) => `
+    <div class="rank-row">
+      <span class="rank-num">${i+1}</span>
+      <div class="rank-info"><div class="name">${cl.key}</div><div class="meta">${cl.pedidos} pedido${cl.pedidos===1?'':'s'} · media ${euros(cl.total/cl.pedidos)}</div></div>
+      <span class="rank-amount">${euros(cl.total)}</span>
+    </div>`).join('') : '<div class="rank-row"><span style="color:#999; font-size:0.85rem;">Sin datos de clientes en este rango</span></div>';
+
+  const rankProductos = document.getElementById('rankProductos');
+  rankProductos.innerHTML = c.topProductos.length ? c.topProductos.map((p, i) => `
+    <div class="rank-row">
+      <span class="rank-num">${i+1}</span>
+      <div class="rank-info"><div class="name">${p.nombre}</div><div class="meta">${p.unidades} unidades vendidas</div></div>
+      <span class="rank-amount">${euros(p.total)}</span>
+    </div>`).join('') : '<div class="rank-row"><span style="color:#999; font-size:0.85rem;">Sin datos de productos en este rango</span></div>';
+
+  return c;
+}
+
+let LAST_CRM = null;
 
 function diffMin(a, b) {
   if (!a || !b) return null;
@@ -245,6 +441,7 @@ async function buscar() {
   const { data, error } = await query;
   if (error) { console.error(error); return; }
   ROWS = data.map(computeRow);
+  LAST_CRM = renderCRM(data);
   renderSummary(ROWS);
   renderTramos(ROWS);
   renderOrders(ROWS);
@@ -262,6 +459,31 @@ function exportExcel() {
   const ws = XLSX.utils.json_to_sheet(sheetData);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Pedidos');
+
+  if (LAST_CRM) {
+    const kpiSheet = XLSX.utils.json_to_sheet([
+      { Indicador: 'Nº pedidos', Valor: LAST_CRM.nPedidos },
+      { Indicador: 'Importe total (€)', Valor: LAST_CRM.importeTotal.toFixed(2) },
+      { Indicador: 'Importe medio (€)', Valor: LAST_CRM.importeMedio.toFixed(2) },
+      { Indicador: 'Clientes únicos', Valor: LAST_CRM.clientesUnicos },
+      { Indicador: 'Clientes recurrentes', Valor: LAST_CRM.recurrentes },
+      { Indicador: '% recurrentes', Valor: LAST_CRM.pctRecurrentes.toFixed(1) + '%' },
+    ]);
+    XLSX.utils.book_append_sheet(wb, kpiSheet, 'KPIs');
+
+    const clientesSheet = XLSX.utils.json_to_sheet(LAST_CRM.topClientes.map(c => ({
+      'Contacto': c.key, 'Nº pedidos': c.pedidos, 'Importe total (€)': c.total.toFixed(2),
+      'Importe medio (€)': (c.total / c.pedidos).toFixed(2),
+      'Primera visita': c.primera, 'Última visita': c.ultima,
+    })));
+    XLSX.utils.book_append_sheet(wb, clientesSheet, 'Clientes');
+
+    const productosSheet = XLSX.utils.json_to_sheet(LAST_CRM.topProductos.map(p => ({
+      'Producto': p.nombre, 'Unidades vendidas': p.unidades, 'Importe total (€)': p.total.toFixed(2),
+    })));
+    XLSX.utils.book_append_sheet(wb, productosSheet, 'Productos');
+  }
+
   const today = new Date().toISOString().slice(0,10);
   XLSX.writeFile(wb, `K-leta_Tiempos_${today}.xlsx`);
 }
