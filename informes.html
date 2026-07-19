@@ -113,6 +113,15 @@ tbody tr:hover { background: var(--cream-dim); }
 
     <div class="summary-grid" id="summaryGrid"></div>
 
+    <h2 class="section-title">Ventas por tipología</h2>
+    <p class="section-sub">Comida (Tapas y raciones), Bebida, y Desayuno/Merienda (Desayunos y meriendas, separado por antes/después de las 12:00).</p>
+    <div class="table-scroll">
+      <table id="tipologiaTable">
+        <thead><tr><th>Tipología</th><th>Nº líneas</th><th>Unidades</th><th>Importe</th><th>% sobre ventas</th><th>Margen</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
     <h2 class="section-title">Indicadores clave (KPIs)</h2>
     <p class="section-sub">Excluye pedidos cancelados.</p>
     <div class="kpi-grid" id="kpiGrid"></div>
@@ -149,6 +158,10 @@ tbody tr:hover { background: var(--cream-dim); }
         <div class="rank-list" id="rankProductos"></div>
       </div>
     </div>
+
+    <h2 class="section-title">Productos con mayor margen</h2>
+    <p class="section-sub">Requiere que el "Coste" esté rellenado en Mantenimiento Carta — si no, aparecerá como "sin dato".</p>
+    <div class="rank-list" id="rankMargen"></div>
 
     <h2 class="section-title">Tiempo medio por tramo horario</h2>
     <div class="table-scroll">
@@ -286,16 +299,69 @@ function computeCRM(raw) {
     });
   });
 
+  // Tipología de venta: Comida / Bebida / Desayuno / Merienda (por categoría de línea + hora del pedido)
+  const TIPOLOGIAS = ['Comida', 'Bebida', 'Desayuno', 'Merienda', 'Sin categoría'];
+  const porTipologia = {};
+  TIPOLOGIAS.forEach(t => porTipologia[t] = { nLineas: 0, unidades: 0, total: 0, costeConocido: 0, margen: 0 });
+
+  // Margen por producto (para el ranking de mayor margen)
+  const margenProducto = {};
+
+  activos.forEach(o => {
+    const hora = new Date(o.t_nuevo).getHours();
+    (o.items || []).forEach(it => {
+      let tipologia;
+      if (it.categoria === 'Tapas y raciones') tipologia = 'Comida';
+      else if (it.categoria === 'Bebidas') tipologia = 'Bebida';
+      else if (it.categoria === 'Desayunos y meriendas') tipologia = hora < 12 ? 'Desayuno' : 'Merienda';
+      else tipologia = 'Sin categoría';
+
+      const lineaTotal = it.qty * it.precio;
+      porTipologia[tipologia].nLineas += 1;
+      porTipologia[tipologia].unidades += it.qty;
+      porTipologia[tipologia].total += lineaTotal;
+
+      if (it.coste !== undefined && it.coste !== null) {
+        const lineaMargen = (it.precio - it.coste) * it.qty;
+        porTipologia[tipologia].costeConocido += it.qty;
+        porTipologia[tipologia].margen += lineaMargen;
+
+        if (!margenProducto[it.nombre]) margenProducto[it.nombre] = { nombre: it.nombre, unidades: 0, margen: 0, margenUnitario: it.precio - it.coste };
+        margenProducto[it.nombre].unidades += it.qty;
+        margenProducto[it.nombre].margen += lineaMargen;
+      }
+    });
+  });
+
   return {
     nPedidos, importeTotal, importeMedio, clientesUnicos, recurrentes: recurrentes.length, pctRecurrentes,
-    porTipo, porCanal, porDia, porHora,
+    porTipo, porCanal, porDia, porHora, porTipologia,
     topClientes: clientes.sort((a,b) => b.pedidos - a.pedidos || b.total - a.total).slice(0, 10),
     topProductos: Object.values(porProducto).sort((a,b) => b.unidades - a.unidades).slice(0, 10),
+    topMargen: Object.values(margenProducto).sort((a,b) => b.margen - a.margen).slice(0, 10),
   };
 }
 
 function renderCRM(raw) {
   const c = computeCRM(raw);
+
+  // Tabla de tipología de venta
+  const tipoTbody = document.querySelector('#tipologiaTable tbody');
+  const TIPOLOGIAS = ['Comida', 'Bebida', 'Desayuno', 'Merienda', 'Sin categoría'];
+  tipoTbody.innerHTML = TIPOLOGIAS.map(t => {
+    const v = c.porTipologia[t];
+    const pct = c.importeTotal > 0 ? (v.total / c.importeTotal * 100) : 0;
+    const margenTxt = v.costeConocido > 0 ? euros(v.margen) : 'sin dato';
+    return `
+      <tr>
+        <td><b>${t}</b></td>
+        <td>${v.nLineas}</td>
+        <td>${v.unidades}</td>
+        <td>${euros(v.total)}</td>
+        <td><span class="tag ${pct >= 30 ? 'ok' : pct >= 10 ? 'warn' : ''}">${pct.toFixed(1)}%</span></td>
+        <td>${margenTxt}</td>
+      </tr>`;
+  }).join('');
 
   document.getElementById('kpiGrid').innerHTML = `
     <div class="kpi-card"><div class="label">Nº pedidos</div><div class="value">${c.nPedidos}</div></div>
@@ -333,6 +399,14 @@ function renderCRM(raw) {
       <div class="rank-info"><div class="name">${p.nombre}</div><div class="meta">${p.unidades} unidades vendidas</div></div>
       <span class="rank-amount">${euros(p.total)}</span>
     </div>`).join('') : '<div class="rank-row"><span style="color:#999; font-size:0.85rem;">Sin datos de productos en este rango</span></div>';
+
+  const rankMargen = document.getElementById('rankMargen');
+  rankMargen.innerHTML = c.topMargen.length ? c.topMargen.map((p, i) => `
+    <div class="rank-row">
+      <span class="rank-num">${i+1}</span>
+      <div class="rank-info"><div class="name">${p.nombre}</div><div class="meta">${p.unidades} unidades · margen unitario ${euros(p.margenUnitario)}</div></div>
+      <span class="rank-amount">${euros(p.margen)}</span>
+    </div>`).join('') : '<div class="rank-row"><span style="color:#999; font-size:0.85rem;">Ningún producto tiene "Coste" registrado todavía. Añádelo desde Mantenimiento Carta para ver el margen.</span></div>';
 
   return c;
 }
@@ -500,6 +574,23 @@ function exportExcel() {
       'Producto': p.nombre, 'Unidades vendidas': p.unidades, 'Importe total (€)': p.total.toFixed(2),
     })));
     XLSX.utils.book_append_sheet(wb, productosSheet, 'Productos');
+
+    const tipologiaSheet = XLSX.utils.json_to_sheet(['Comida','Bebida','Desayuno','Merienda','Sin categoría'].map(t => {
+      const v = LAST_CRM.porTipologia[t];
+      const pct = LAST_CRM.importeTotal > 0 ? (v.total / LAST_CRM.importeTotal * 100) : 0;
+      return {
+        'Tipología': t, 'Nº líneas': v.nLineas, 'Unidades': v.unidades,
+        'Importe (€)': v.total.toFixed(2), '% sobre ventas': pct.toFixed(1) + '%',
+        'Margen (€)': v.costeConocido > 0 ? v.margen.toFixed(2) : 'sin dato',
+      };
+    }));
+    XLSX.utils.book_append_sheet(wb, tipologiaSheet, 'Tipología de venta');
+
+    const margenSheet = XLSX.utils.json_to_sheet(LAST_CRM.topMargen.map(p => ({
+      'Producto': p.nombre, 'Unidades vendidas': p.unidades,
+      'Margen unitario (€)': p.margenUnitario.toFixed(2), 'Margen total (€)': p.margen.toFixed(2),
+    })));
+    XLSX.utils.book_append_sheet(wb, margenSheet, 'Márgenes');
   }
 
   const today = new Date().toISOString().slice(0,10);
