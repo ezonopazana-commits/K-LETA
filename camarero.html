@@ -43,7 +43,10 @@ nav.links a:hover { color: var(--gold-light); }
 .card .codigo { font-family:'Fraunces',serif; font-weight:700; font-size:1.2rem; }
 .card .tipo { font-size:0.7rem; text-transform:uppercase; letter-spacing:0.05em; padding:4px 10px; border-radius:999px; background: rgba(199,167,92,0.15); color:var(--gold-light); }
 .card .items { font-size:0.85rem; color: rgba(245,241,231,0.75); margin-bottom:10px; line-height:1.5; }
-.card .timer { font-family:'Fraunces',serif; font-weight:700; font-size:1rem; margin-bottom:10px; }
+.card .timer { font-family:'Fraunces',serif; font-weight:700; font-size:1.15rem; margin-bottom:4px; }
+.card .timer-target { font-size:0.7rem; color: rgba(245,241,231,0.4); margin-bottom:10px; }
+@keyframes blinkTimer { 50% { opacity: 0.25; } }
+.timer.bad { animation: blinkTimer 0.9s step-start infinite; }
 .timer.ok { color: var(--ok); } .timer.warn { color: var(--warn); } .timer.bad { color: var(--bad); }
 .drink-hint { font-size:0.78rem; background: rgba(199,167,92,0.1); border:1px solid rgba(199,167,92,0.3); border-radius:10px; padding:8px 10px; margin-bottom:10px; }
 .card button { width:100%; padding:13px; border:none; border-radius:10px; background: var(--gold); color: var(--ink-2); font-weight:800; font-size:0.9rem; cursor:pointer; margin-top:4px; }
@@ -102,7 +105,6 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
 <script>
 const sb = supabase.createClient('https://gcmkrbqjwlrffnhhiojk.supabase.co', 'sb_publishable_9NYniFKapOV8WdOBnuKoBg_Q3rDyKjF');
 const PIN = '1234';
-const TARGET_WARN = 10, TARGET_BAD = 18;
 const TIPO_LABEL = { local: 'Local', recoger: 'Recoger', domicilio: 'Domicilio' };
 const EN_COCINA_STATES = ['pendiente_cocina', 'oido_cocina', 'en_proceso', 'ultimo_producto'];
 const EN_COCINA_LABEL = {
@@ -110,15 +112,41 @@ const EN_COCINA_LABEL = {
   en_proceso: "¡Esto está en na'!", ultimo_producto: '¡Lo están peinando!'
 };
 
-function fmtElapsed(startIso) {
-  const secs = Math.floor((Date.now() - new Date(startIso).getTime()) / 1000);
-  const m = Math.floor(secs / 60), s = secs % 60;
-  return { text: `${m}:${s.toString().padStart(2,'0')}`, minutes: secs / 60 };
+// Tiempo de referencia por fase (segundos): recepción 2', ack cocina 3', inicio 4', penúltimo 3', último 3', entrega 2'
+const TARGETS = {
+  nuevo: 120, pendiente_cocina: 180, oido_cocina: 240, en_proceso: 180, ultimo_producto: 180, listo: 120,
+};
+const START_COL = {
+  nuevo: 't_nuevo', pendiente_cocina: 't_pendiente_cocina', oido_cocina: 't_oido_cocina',
+  en_proceso: 't_en_proceso', ultimo_producto: 't_ultimo_producto', listo: 't_listo',
+};
+
+function fmtMMSS(totalSeconds) {
+  const sign = totalSeconds < 0 ? '-' : '';
+  const s = Math.abs(Math.round(totalSeconds));
+  const m = Math.floor(s / 60), sec = s % 60;
+  return `${sign}${m}:${sec.toString().padStart(2,'0')}`;
 }
-function timerClass(minutes) {
-  if (minutes >= TARGET_BAD) return 'bad';
-  if (minutes >= TARGET_WARN) return 'warn';
+function statusClass(elapsedSec, targetSec) {
+  const diff = elapsedSec - targetSec;
+  if (diff > 10) return 'bad';
+  if (diff >= -10) return 'warn';
   return 'ok';
+}
+function timerHtml(order) {
+  const startIso = order[START_COL[order.estado]] || order.t_nuevo;
+  const target = TARGETS[order.estado] || 120;
+  return `<div class="timer" data-start="${startIso}" data-target="${target}">⏱ 0:00</div><div class="timer-target">Objetivo: ${fmtMMSS(target)}</div>`;
+}
+function tickTimers() {
+  document.querySelectorAll('.timer[data-start]').forEach(el => {
+    const start = new Date(el.dataset.start).getTime();
+    const target = parseFloat(el.dataset.target);
+    const elapsedSec = (Date.now() - start) / 1000;
+    el.textContent = '⏱ ' + fmtMMSS(elapsedSec);
+    el.classList.remove('ok', 'warn', 'bad');
+    el.classList.add(statusClass(elapsedSec, target));
+  });
 }
 
 let ORDERS = [];
@@ -154,7 +182,6 @@ function waLink(order, texto) {
 
 function nuevoCardHtml(o) {
   const items = (o.items || []).map(it => `${it.qty}× ${it.nombre}`).join(', ');
-  const el = fmtElapsed(o.t_nuevo);
   const drinkMsg = o.tipo === 'local'
     ? '🍹 Sirve la bebida ahora, luego pasa a cocina.'
     : '🍹 No prepares la bebida todavía — se hará cuando llegue quien lo recoja.';
@@ -163,7 +190,7 @@ function nuevoCardHtml(o) {
       <div class="top-row"><span class="codigo">${o.codigo}</span><span class="tipo">${TIPO_LABEL[o.tipo]||o.tipo}</span></div>
       <div class="items">${items}</div>
       <div class="badge-contacto">Total: ${Number(o.total).toFixed(2).replace('.', ',')} € · Contacto: ${o.canal_contacto === 'email' ? (o.contacto_email||'—') : (o.contacto_telefono||'—')}</div>
-      <div class="timer ${timerClass(el.minutes)}">⏱ ${el.text}</div>
+      ${timerHtml(o)}
       <div class="drink-hint">${drinkMsg}</div>
       <button data-cocina="${o.id}">Pasar a cocina</button>
     </div>`;
@@ -171,26 +198,25 @@ function nuevoCardHtml(o) {
 
 function encocinaCardHtml(o) {
   const items = (o.items || []).map(it => `${it.qty}× ${it.nombre}`).join(', ');
-  const el = fmtElapsed(o.t_nuevo);
   return `
     <div class="card">
       <div class="top-row"><span class="codigo">${o.codigo}</span><span class="tipo">${TIPO_LABEL[o.tipo]||o.tipo}</span></div>
       <div class="items">${items}</div>
-      <div class="timer ${timerClass(el.minutes)}">⏱ ${el.text} · ${EN_COCINA_LABEL[o.estado]}</div>
+      ${timerHtml(o)}
+      <div class="timer-target" style="margin-top:-6px;">${EN_COCINA_LABEL[o.estado]}</div>
     </div>`;
 }
 
 function listoCardHtml(o) {
   const items = (o.items || []).map(it => `${it.qty}× ${it.nombre}`).join(', ');
-  const el = fmtElapsed(o.t_nuevo);
-  const msg = `Hola, tu pedido ${o.codigo} de K-leta ya está listo` + (o.tipo === 'domicilio' ? '. El repartidor pasará a recogerlo enseguida.' : o.tipo === 'recoger' ? '. Puedes pasar a recogerlo cuando quieras.' : '. ¡Te lo llevamos a la mesa!');
+  const msg = `Hola, tu pedido ${o.codigo} de K-leta ya está listo` + (o.tipo === 'domicilio' ? '. El repartidor pasará a recogerlo enseguida.' : o.tipo === 'recoger' ? '. Puedes pasar a recogerlo cuando quieras.' : '. Puedes pasar a recogerlo ya.');
   const link = waLink(o, msg);
   const riderNote = o.tipo === 'domicilio' ? '<div class="drink-hint">🛵 Recuerda avisar también al repartidor.</div>' : '';
   return `
     <div class="card">
       <div class="top-row"><span class="codigo">${o.codigo}</span><span class="tipo">${TIPO_LABEL[o.tipo]||o.tipo}</span></div>
       <div class="items">${items}</div>
-      <div class="timer ${timerClass(el.minutes)}">⏱ ${el.text} total</div>
+      ${timerHtml(o)}
       ${riderNote}
       ${link ? `<a href="${link}" target="_blank" rel="noopener" style="text-decoration:none;"><button type="button">📱 Avisar cliente por WhatsApp</button></a>` : ''}
       <button type="button" class="secondary" data-entregar="${o.id}">Marcar como entregado</button>
@@ -209,6 +235,7 @@ function render() {
   fillCol('col-nuevo', nuevos, nuevoCardHtml);
   fillCol('col-encocina', enCocina, encocinaCardHtml);
   fillCol('col-listo', listos, listoCardHtml);
+  tickTimers();
 }
 
 function fillCol(colId, list, tpl) {
@@ -241,7 +268,8 @@ document.addEventListener('click', (e) => {
   }
 });
 
-setInterval(render, 5000);
+// Cronómetro constante: se actualiza cada segundo sin reconstruir todo el tablero
+setInterval(tickTimers, 1000);
 
 const gate = document.getElementById('gate');
 const app = document.getElementById('app');

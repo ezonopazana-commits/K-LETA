@@ -160,7 +160,7 @@ tbody tr:hover { background: var(--cream-dim); }
       <table id="ordersTable">
         <thead><tr>
           <th>Código</th><th>Fecha</th><th>Hora</th><th>Tipo</th><th>Estado</th>
-          <th>Recepción (min)</th><th>Ack cocina (min)</th><th>Preparación (min)</th><th>Cocina total (min)</th><th>Entrega (min)</th><th>TOTAL (min)</th>
+          <th>Recepción</th><th>Ack cocina</th><th>Preparación</th><th>Cocina total</th><th>Entrega</th><th>TOTAL</th>
         </tr></thead>
         <tbody></tbody>
       </table>
@@ -197,7 +197,10 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
 <script>
 const sb = supabase.createClient('https://gcmkrbqjwlrffnhhiojk.supabase.co', 'sb_publishable_9NYniFKapOV8WdOBnuKoBg_Q3rDyKjF');
 const PIN = '1234';
-const TARGET_WARN = 10, TARGET_BAD = 18; // minutos, tiempo TOTAL objetivo
+// Tiempo de referencia por fase (segundos): recepción 2', ack cocina 3', inicio 4', penúltimo 3', último 3', entrega 2'
+const TARGETS_SEC = {
+  recepcion: 120, ackCocina: 180, preparacion: 180, cocinaTotal: 780, entrega: 120, total: 1020,
+};
 
 const TIPO_LABEL = { local: 'Local', recoger: 'Recoger', domicilio: 'Domicilio' };
 const ESTADO_LABEL = {
@@ -336,27 +339,35 @@ function renderCRM(raw) {
 
 let LAST_CRM = null;
 
-function diffMin(a, b) {
+function diffSec(a, b) {
   if (!a || !b) return null;
-  return (new Date(b).getTime() - new Date(a).getTime()) / 60000;
+  return (new Date(b).getTime() - new Date(a).getTime()) / 1000;
 }
-function fmtMin(v) { return v === null || v === undefined ? '—' : v.toFixed(1); }
-function tagClass(v) {
-  if (v === null) return '';
-  if (v >= TARGET_BAD) return 'bad';
-  if (v >= TARGET_WARN) return 'warn';
+function fmtDuration(sec) {
+  if (sec === null || sec === undefined || isNaN(sec)) return '—';
+  const sign = sec < 0 ? '-' : '';
+  const s = Math.abs(Math.round(sec));
+  const m = Math.floor(s / 60), rem = s % 60;
+  return m > 0 ? `${sign}${m}m ${rem}s` : `${sign}${rem}s`;
+}
+function tagClass(sec, targetKey) {
+  if (sec === null || sec === undefined || isNaN(sec)) return '';
+  const target = TARGETS_SEC[targetKey] || 0;
+  const diff = sec - target;
+  if (diff > 10) return 'bad';
+  if (diff >= -10) return 'warn';
   return 'ok';
 }
 
 let ROWS = [];
 
 function computeRow(o) {
-  const recepcion = diffMin(o.t_nuevo, o.t_pendiente_cocina);
-  const ackCocina = diffMin(o.t_pendiente_cocina, o.t_oido_cocina);
-  const preparacion = diffMin(o.t_en_proceso, o.t_ultimo_producto || o.t_listo);
-  const cocinaTotal = diffMin(o.t_pendiente_cocina, o.t_listo);
-  const entrega = diffMin(o.t_listo, o.t_entregado);
-  const total = diffMin(o.t_nuevo, o.t_entregado);
+  const recepcion = diffSec(o.t_nuevo, o.t_pendiente_cocina);
+  const ackCocina = diffSec(o.t_pendiente_cocina, o.t_oido_cocina);
+  const preparacion = diffSec(o.t_en_proceso, o.t_ultimo_producto || o.t_listo);
+  const cocinaTotal = diffSec(o.t_pendiente_cocina, o.t_listo);
+  const entrega = diffSec(o.t_listo, o.t_entregado);
+  const total = diffSec(o.t_nuevo, o.t_entregado);
   const dt = new Date(o.t_nuevo);
   return {
     codigo: o.codigo,
@@ -385,9 +396,9 @@ function renderSummary(rows) {
   const grid = document.getElementById('summaryGrid');
   grid.innerHTML = `
     <div class="stat-card"><div class="label">Pedidos</div><div class="value">${rows.length}</div></div>
-    <div class="stat-card"><div class="label">Tiempo medio total</div><div class="value ${tagClass(avgTotal)}">${fmtMin(avgTotal)} min</div></div>
-    <div class="stat-card"><div class="label">Media recepción cocina</div><div class="value ${tagClass(avgRecep)}">${fmtMin(avgRecep)} min</div></div>
-    <div class="stat-card"><div class="label">Media entrega final</div><div class="value ${tagClass(avgEntrega)}">${fmtMin(avgEntrega)} min</div></div>
+    <div class="stat-card"><div class="label">Tiempo medio total</div><div class="value ${tagClass(avgTotal,'total')}">${fmtDuration(avgTotal)}</div></div>
+    <div class="stat-card"><div class="label">Media recepción cocina</div><div class="value ${tagClass(avgRecep,'recepcion')}">${fmtDuration(avgRecep)}</div></div>
+    <div class="stat-card"><div class="label">Media entrega final</div><div class="value ${tagClass(avgEntrega,'entrega')}">${fmtDuration(avgEntrega)}</div></div>
   `;
 }
 
@@ -407,10 +418,10 @@ function renderTramos(rows) {
     tr.innerHTML = `
       <td>${h}:00–${h}:59</td>
       <td>${list.length}</td>
-      <td>${fmtMin(avg(list.map(r => r.recepcion)))}</td>
-      <td>${fmtMin(avg(list.map(r => r.cocinaTotal)))}</td>
-      <td>${fmtMin(avg(list.map(r => r.entrega)))}</td>
-      <td><span class="tag ${tagClass(aTotal)}">${fmtMin(aTotal)}</span></td>
+      <td>${fmtDuration(avg(list.map(r => r.recepcion)))}</td>
+      <td>${fmtDuration(avg(list.map(r => r.cocinaTotal)))}</td>
+      <td>${fmtDuration(avg(list.map(r => r.entrega)))}</td>
+      <td><span class="tag ${tagClass(aTotal,'total')}">${fmtDuration(aTotal)}</span></td>
     `;
     tbody.appendChild(tr);
   });
@@ -424,9 +435,12 @@ function renderOrders(rows) {
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>${r.codigo}</td><td>${r.fecha}</td><td>${r.hora}</td><td>${r.tipo}</td><td>${r.estado}</td>
-      <td>${fmtMin(r.recepcion)}</td><td>${fmtMin(r.ackCocina)}</td><td>${fmtMin(r.preparacion)}</td>
-      <td>${fmtMin(r.cocinaTotal)}</td><td>${fmtMin(r.entrega)}</td>
-      <td><span class="tag ${tagClass(r.total)}">${fmtMin(r.total)}</span></td>
+      <td><span class="tag ${tagClass(r.recepcion,'recepcion')}">${fmtDuration(r.recepcion)}</span></td>
+      <td><span class="tag ${tagClass(r.ackCocina,'ackCocina')}">${fmtDuration(r.ackCocina)}</span></td>
+      <td><span class="tag ${tagClass(r.preparacion,'preparacion')}">${fmtDuration(r.preparacion)}</span></td>
+      <td><span class="tag ${tagClass(r.cocinaTotal,'cocinaTotal')}">${fmtDuration(r.cocinaTotal)}</span></td>
+      <td><span class="tag ${tagClass(r.entrega,'entrega')}">${fmtDuration(r.entrega)}</span></td>
+      <td><span class="tag ${tagClass(r.total,'total')}">${fmtDuration(r.total)}</span></td>
     `;
     tbody.appendChild(tr);
   });
@@ -453,8 +467,12 @@ function exportExcel() {
     'Código': r.codigo, 'Fecha': r.fecha, 'Hora': r.hora, 'Tipo': r.tipo, 'Estado': r.estado,
     'Nuevo pedido': r.t_nuevo, 'Pendiente cocina': r.t_pendiente_cocina, 'Oído cocina': r.t_oido_cocina,
     'En proceso': r.t_en_proceso, 'Último producto': r.t_ultimo_producto, 'Listo': r.t_listo, 'Entregado': r.t_entregado,
-    'Recepción (min)': r.recepcion, 'Ack cocina (min)': r.ackCocina, 'Preparación (min)': r.preparacion,
-    'Cocina total (min)': r.cocinaTotal, 'Entrega (min)': r.entrega, 'TOTAL (min)': r.total,
+    'Recepción (min)': r.recepcion !== null ? (r.recepcion/60).toFixed(2) : '',
+    'Ack cocina (min)': r.ackCocina !== null ? (r.ackCocina/60).toFixed(2) : '',
+    'Preparación (min)': r.preparacion !== null ? (r.preparacion/60).toFixed(2) : '',
+    'Cocina total (min)': r.cocinaTotal !== null ? (r.cocinaTotal/60).toFixed(2) : '',
+    'Entrega (min)': r.entrega !== null ? (r.entrega/60).toFixed(2) : '',
+    'TOTAL (min)': r.total !== null ? (r.total/60).toFixed(2) : '',
   }));
   const ws = XLSX.utils.json_to_sheet(sheetData);
   const wb = XLSX.utils.book_new();
