@@ -127,6 +127,13 @@ main { padding: 40px 0 90px; }
   padding: 5px 12px; font-size: 0.76rem; color: var(--ink-soft);
 }
 .product-allergens { margin-top: 10px; font-size: 0.74rem; color: var(--ink-soft); }
+.bread-select-wrap { margin-top: 12px; }
+.bread-select {
+  width: 100%; padding: 9px 12px; border-radius: 10px; border: 1.5px solid var(--gold);
+  background: rgba(199,167,92,0.07); font-family: 'Inter', sans-serif; font-size: 0.86rem; font-weight: 600;
+  color: var(--ink); cursor: pointer;
+}
+.bread-select:focus { outline: none; border-color: var(--gold-dark); }
 .product-allergens b { color: var(--gold-dark); }
 
 /* ---------- TIPO DE PEDIDO ---------- */
@@ -2928,7 +2935,18 @@ function allergenText(p) {
   return 'Contiene: ' + p.alergenos.join(', ');
 }
 
+const PRODUCTOS_CON_PAN = ['Café + Tostada'];
+const OPCIONES_PAN = ['Pan Blanco', 'Integral', 'Semillas', 'Sin Gluten'];
+
 function cardHtml(p) {
+  const necesitaPan = PRODUCTOS_CON_PAN.includes(p.nombre);
+  const panSelector = necesitaPan ? `
+        <div class="bread-select-wrap">
+          <label class="visually-hidden" for="bread-${p.id}">Elige el tipo de pan</label>
+          <select id="bread-${p.id}" class="bread-select" data-bread-for="${p.id}">
+            ${OPCIONES_PAN.map(o => `<option value="${o}">${o === 'Pan Blanco' ? 'Pan blanco' : 'Pan ' + o.toLowerCase()}</option>`).join('')}
+          </select>
+        </div>` : '';
   return `
     <article class="product-card">
       <div class="product-media">
@@ -2940,6 +2958,7 @@ function cardHtml(p) {
         <p class="desc">${p.descripcion || ''}</p>
         <span class="format-badge">${formatBadge(p)}</span>
         <p class="product-allergens"><b>Alérgenos:</b> ${allergenText(p)}</p>
+        ${panSelector}
         <div class="product-footer">
           <div class="qty-stepper">
             <button type="button" aria-label="Quitar una unidad de ${p.nombre}" data-qty-minus="${p.id}">−</button>
@@ -3024,8 +3043,24 @@ function loadCart() {
 function saveCart(cart) {
   try { localStorage.setItem('kleta-cart', JSON.stringify(cart)); } catch (e) {}
 }
+function loadCartNotes() {
+  try {
+    const raw = localStorage.getItem('kleta-cart-notes');
+    return raw ? JSON.parse(raw) : {};
+  } catch (e) { return {}; }
+}
+function saveCartNotes(notes) {
+  try { localStorage.setItem('kleta-cart-notes', JSON.stringify(notes)); } catch (e) {}
+}
 
 let cart = loadCart(); // { id: qty }
+let cartNotes = loadCartNotes(); // { id: 'Pan Integral' } — variantes elegidas (ej. tipo de pan)
+
+function nombreConNota(id) {
+  const p = PRODUCT_MAP[id];
+  const nota = cartNotes[id];
+  return nota ? `${p.nombre} (${nota})` : p.nombre;
+}
 
 const cartBtn = document.getElementById('cartBtn');
 const cartBadge = document.getElementById('cartBadge');
@@ -3068,7 +3103,7 @@ function updateCartUI() {
         <div class="cart-item">
           ${media}
           <div class="cart-item-info">
-            <h4>${p.nombre}</h4>
+            <h4>${nombreConNota(id)}</h4>
             <span class="fmt">${formatBadge(p)}</span>
             <div class="cart-item-row">
               <div class="qty-stepper">
@@ -3085,6 +3120,7 @@ function updateCartUI() {
   }
   cartTotalEl.textContent = euros(cartTotal());
   saveCart(cart);
+  saveCartNotes(cartNotes);
 }
 
 function addToCart(id, qty) {
@@ -3132,6 +3168,10 @@ document.getElementById('productContainer').addEventListener('click', (e) => {
     document.getElementById('qty-' + id).textContent = localQty[id];
   } else if (add) {
     const id = add.dataset.add;
+    const breadSelect = document.getElementById('bread-' + id);
+    if (breadSelect) {
+      cartNotes[id] = breadSelect.value;
+    }
     addToCart(id, localQty[id] || 1);
     localQty[id] = 1;
     document.getElementById('qty-' + id).textContent = 1;
@@ -3150,10 +3190,12 @@ cartItemsEl.addEventListener('click', (e) => {
   } else if (minus) {
     const id = minus.dataset.cartMinus;
     cart[id] = (cart[id] || 0) - 1;
-    if (cart[id] <= 0) delete cart[id];
+    if (cart[id] <= 0) { delete cart[id]; delete cartNotes[id]; }
     updateCartUI();
   } else if (remove) {
-    delete cart[remove.dataset.cartRemove];
+    const id = remove.dataset.cartRemove;
+    delete cart[id];
+    delete cartNotes[id];
     updateCartUI();
   }
 });
@@ -3475,7 +3517,7 @@ async function finalizarPedido() {
   const orderId = 'K' + Date.now().toString().slice(-6);
   const itemsPayload = entries.map(([id, qty]) => {
     const p = PRODUCT_MAP[id];
-    return { nombre: p.nombre, formato: formatBadge(p), qty, precio: p.precio, categoria: p.categoria, producto_id: id, coste: p.coste };
+    return { nombre: nombreConNota(id), formato: formatBadge(p), qty, precio: p.precio, categoria: p.categoria, producto_id: id, coste: p.coste };
   });
   const soloBebidas = itemsPayload.every(it => it.categoria === 'Bebidas');
   const { tipo_preparacion, salta_cocina } = clasificarPreparacion(itemsPayload);
@@ -3534,7 +3576,7 @@ async function finalizarPedido() {
     let msg = `Pedido Nº ${orderId} — K-leta%0A${encodeURIComponent(tipoLabel(tipo))}%0A%0A`;
     entries.forEach(([id, qty]) => {
       const p = PRODUCT_MAP[id];
-      msg += `• ${qty} x ${p.nombre} (${formatBadge(p)}) — ${euros(p.precio * qty)}%0A`;
+      msg += `• ${qty} x ${nombreConNota(id)} (${formatBadge(p)}) — ${euros(p.precio * qty)}%0A`;
     });
     msg += `%0ATotal: ${euros(cartTotal())}%0A%0ASeguimiento: ${encodeURIComponent(seguimientoUrl.toString())}`;
     if (tipo === 'domicilio') {
@@ -3547,7 +3589,7 @@ async function finalizarPedido() {
     let bodyMsg = `Pedido Nº ${orderId} - K-leta%0D%0A${tipoLabel(tipo)}%0D%0A%0D%0A`;
     entries.forEach(([id, qty]) => {
       const p = PRODUCT_MAP[id];
-      bodyMsg += `${qty} x ${p.nombre} (${formatBadge(p)}) - ${euros(p.precio * qty)}%0D%0A`;
+      bodyMsg += `${qty} x ${nombreConNota(id)} (${formatBadge(p)}) - ${euros(p.precio * qty)}%0D%0A`;
     });
     bodyMsg += `%0D%0ATotal: ${euros(cartTotal())}%0D%0ASeguimiento: ${seguimientoUrl.toString()}`;
     const destinatario = 'pedidos@k-leta.es';
@@ -3561,7 +3603,9 @@ async function finalizarPedido() {
   orderConfirm.style.display = 'block';
 
   cart = {};
+  cartNotes = {};
   saveCart(cart);
+  saveCartNotes(cartNotes);
   updateCartBadgeOnly();
 }
 
