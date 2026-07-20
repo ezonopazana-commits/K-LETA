@@ -296,6 +296,36 @@ main { padding: 40px 0 90px; }
 }
 .new-order-btn:hover { border-color: var(--gold-dark); }
 
+/* ---------- PAGO SIMULADO ---------- */
+.payment-view { padding: 26px 30px; text-align: center; }
+.payment-methods { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 18px; }
+.payment-method-btn {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  border: 1px solid rgba(28,31,36,0.15); background: #fff; border-radius: 14px;
+  padding: 16px 8px; cursor: pointer; font-size: 0.82rem; font-weight: 600; color: var(--ink);
+  transition: border-color .2s var(--ease), background .2s var(--ease);
+}
+.payment-method-btn .pm-icon { font-size: 1.5rem; }
+.payment-method-btn:hover { border-color: var(--gold); }
+.payment-method-btn[aria-pressed="true"] { background: var(--ink); color: var(--gold-light); border-color: var(--ink); }
+.payment-form { text-align: left; margin-bottom: 14px; }
+.payment-form input {
+  width: 100%; padding: 11px 14px; border-radius: 10px; border: 1px solid rgba(28,31,36,0.15);
+  font-family: 'Inter', sans-serif; font-size: 0.9rem; margin-bottom: 8px;
+}
+.payment-form input:focus { outline: none; border-color: var(--gold); }
+.payment-form .field-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.payment-form .field-row-2 input { margin-bottom: 0; }
+.crypto-box { background: #fff; border: 1px solid rgba(28,31,36,0.1); border-radius: 14px; padding: 16px; margin-bottom: 12px; }
+.crypto-box .wallet { font-family: monospace; font-size: 0.78rem; background: var(--cream-dim); padding: 8px 10px; border-radius: 8px; word-break: break-all; margin-top: 8px; }
+.pay-spinner {
+  width: 44px; height: 44px; border-radius: 50%; margin: 0 auto;
+  border: 4px solid rgba(199,167,92,0.2); border-top-color: var(--gold);
+  animation: paySpin 0.8s linear infinite;
+}
+@keyframes paySpin { to { transform: rotate(360deg); } }
+.payment-disclaimer { font-size: 0.72rem; color: var(--ink-soft); opacity: 0.7; margin-top: 16px; }
+
 
 footer { background: var(--ink); color: rgba(245,241,231,0.65); padding: 40px 0; text-align: center; font-size: 0.85rem; }
 footer a { color: var(--gold-light); text-decoration: none; }
@@ -439,6 +469,32 @@ footer a { color: var(--gold-light); text-decoration: none; }
       </button>
     </div>
   </div>
+  <div class="payment-view" id="paymentView" style="display:none;">
+    <p class="eyebrow">Pago (simulado)</p>
+    <h3 style="font-family:'Fraunces',serif; margin:6px 0 4px;">Elige cómo quieres pagar</h3>
+    <p style="color:var(--ink-soft); font-size:0.85rem; margin-bottom:18px;">Total a pagar: <strong id="payTotalText"></strong></p>
+    <div class="payment-methods" id="paymentMethods">
+      <button type="button" class="payment-method-btn" data-method="tarjeta">
+        <span class="pm-icon">💳</span><span>Tarjeta</span>
+      </button>
+      <button type="button" class="payment-method-btn" data-method="bizum">
+        <span class="pm-icon">📲</span><span>Bizum</span>
+      </button>
+      <button type="button" class="payment-method-btn" data-method="cripto">
+        <span class="pm-icon">₿</span><span>Cripto</span>
+      </button>
+    </div>
+    <div id="paymentFormArea"></div>
+    <p class="form-error" id="paymentError">Revisa los datos de pago.</p>
+    <button class="checkout-btn" id="payNowBtn" style="display:none;">Confirmar pago</button>
+    <div id="paymentProcessing" style="display:none; text-align:center; padding:24px 0;">
+      <div class="pay-spinner"></div>
+      <p style="margin-top:14px; color:var(--ink-soft); font-size:0.9rem;" id="paymentProcessingText">Procesando pago...</p>
+    </div>
+    <button class="new-order-btn" id="paymentBackBtn">← Volver al pedido</button>
+    <p class="payment-disclaimer">Pasarela de pago simulada — no se realiza ningún cargo real.</p>
+  </div>
+
   <div class="order-confirm" id="orderConfirm" style="display:none;" aria-live="polite">
     <p class="eyebrow">Pedido confirmado</p>
     <p class="order-id" id="orderIdText"></p>
@@ -3177,7 +3233,8 @@ orderTypeFieldset.addEventListener('change', () => {
   updateCartUI();
 });
 
-checkoutBtn.addEventListener('click', async () => {
+// ---- Paso 1: validar y abrir la pasarela de pago simulada ----
+checkoutBtn.addEventListener('click', () => {
   const entries = Object.entries(cart).filter(([id]) => PRODUCT_MAP[id]);
   const tipo = getTipoPedido();
   if (entries.length === 0 || !tipo) return;
@@ -3204,6 +3261,120 @@ checkoutBtn.addEventListener('click', async () => {
     }
   }
 
+  abrirPago();
+});
+
+// ---- Pasarela de pago simulada ----
+const paymentView = document.getElementById('paymentView');
+const paymentMethods = document.getElementById('paymentMethods');
+const paymentFormArea = document.getElementById('paymentFormArea');
+const paymentError = document.getElementById('paymentError');
+const payNowBtn = document.getElementById('payNowBtn');
+const paymentProcessing = document.getElementById('paymentProcessing');
+const paymentProcessingText = document.getElementById('paymentProcessingText');
+const paymentBackBtn = document.getElementById('paymentBackBtn');
+let metodoPago = null;
+
+function abrirPago() {
+  document.getElementById('payTotalText').textContent = euros(cartTotal());
+  cartBody.style.display = 'none';
+  paymentView.style.display = 'block';
+  metodoPago = null;
+  paymentMethods.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', 'false'));
+  paymentFormArea.innerHTML = '';
+  payNowBtn.style.display = 'none';
+  paymentError.classList.remove('show');
+  paymentProcessing.style.display = 'none';
+}
+
+paymentBackBtn.addEventListener('click', () => {
+  paymentView.style.display = 'none';
+  cartBody.style.display = '';
+});
+
+paymentMethods.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-method]');
+  if (!btn) return;
+  metodoPago = btn.dataset.method;
+  paymentMethods.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', b === btn ? 'true' : 'false'));
+  paymentError.classList.remove('show');
+
+  if (metodoPago === 'tarjeta') {
+    paymentFormArea.innerHTML = `
+      <div class="payment-form">
+        <input type="text" id="pTarjetaNum" placeholder="Número de tarjeta (16 dígitos)" inputmode="numeric" maxlength="19">
+        <div class="field-row-2">
+          <input type="text" id="pTarjetaCad" placeholder="MM/AA" maxlength="5">
+          <input type="text" id="pTarjetaCvv" placeholder="CVV" inputmode="numeric" maxlength="3">
+        </div>
+      </div>`;
+  } else if (metodoPago === 'bizum') {
+    const tel = contactChannel === 'whatsapp' ? contactValue.value.trim() : '';
+    paymentFormArea.innerHTML = `
+      <div class="payment-form">
+        <label class="visually-hidden" for="pBizumTel">Teléfono Bizum</label>
+        <input type="tel" id="pBizumTel" placeholder="Teléfono asociado a Bizum" value="${tel}" inputmode="tel">
+        <p style="font-size:0.8rem; color:var(--ink-soft);">Recibirás la solicitud de pago en tu app del banco (simulado).</p>
+      </div>`;
+  } else if (metodoPago === 'cripto') {
+    const wallet = 'bc1q' + Array.from({length: 34}, () => 'abcdef0123456789'[Math.floor(Math.random()*16)]).join('');
+    paymentFormArea.innerHTML = `
+      <div class="crypto-box">
+        <p style="font-size:0.82rem; color:var(--ink-soft);">Envía el equivalente a <strong>${euros(cartTotal())}</strong> a esta dirección (BTC, simulado):</p>
+        <div class="wallet">${wallet}</div>
+      </div>`;
+  }
+  payNowBtn.style.display = 'block';
+  payNowBtn.textContent = metodoPago === 'cripto' ? 'He enviado el pago' : 'Confirmar pago';
+});
+
+function validarPago() {
+  if (metodoPago === 'tarjeta') {
+    const num = document.getElementById('pTarjetaNum').value.replace(/\s/g, '');
+    const cad = document.getElementById('pTarjetaCad').value.trim();
+    const cvv = document.getElementById('pTarjetaCvv').value.trim();
+    if (!/^\d{16}$/.test(num)) return 'Introduce un número de tarjeta válido (16 dígitos).';
+    if (!/^\d{2}\/\d{2}$/.test(cad)) return 'Fecha de caducidad no válida (MM/AA).';
+    if (!/^\d{3}$/.test(cvv)) return 'CVV no válido (3 dígitos).';
+  } else if (metodoPago === 'bizum') {
+    const tel = document.getElementById('pBizumTel').value.replace(/\D/g, '');
+    if (tel.length < 9) return 'Introduce un teléfono válido para Bizum.';
+  }
+  return null;
+}
+
+payNowBtn.addEventListener('click', async () => {
+  const err = validarPago();
+  if (err) {
+    paymentError.textContent = err;
+    paymentError.classList.add('show');
+    return;
+  }
+  paymentError.classList.remove('show');
+  paymentMethods.style.display = 'none';
+  paymentFormArea.style.display = 'none';
+  payNowBtn.style.display = 'none';
+  paymentBackBtn.style.display = 'none';
+  paymentProcessing.style.display = 'block';
+  paymentProcessingText.textContent = 'Procesando pago...';
+
+  await new Promise(res => setTimeout(res, 1600));
+  paymentProcessingText.textContent = '¡Pago realizado! ✓';
+  await new Promise(res => setTimeout(res, 500));
+
+  paymentMethods.style.display = '';
+  paymentFormArea.style.display = '';
+  paymentBackBtn.style.display = '';
+  paymentView.style.display = 'none';
+
+  await finalizarPedido();
+});
+
+// ---- Paso 2: enviar el pedido de verdad (tras el pago simulado) ----
+async function finalizarPedido() {
+  const entries = Object.entries(cart).filter(([id]) => PRODUCT_MAP[id]);
+  const tipo = getTipoPedido();
+
   const orderId = 'K' + Date.now().toString().slice(-6);
   const itemsPayload = entries.map(([id, qty]) => {
     const p = PRODUCT_MAP[id];
@@ -3211,10 +3382,6 @@ checkoutBtn.addEventListener('click', async () => {
   });
   const soloBebidas = itemsPayload.every(it => it.categoria === 'Bebidas');
   const { tipo_preparacion, salta_cocina } = clasificarPreparacion(itemsPayload);
-
-  checkoutBtn.disabled = true;
-  checkoutBtn.dataset.originalHtml = checkoutBtn.dataset.originalHtml || checkoutBtn.innerHTML;
-  checkoutBtn.textContent = 'Enviando pedido...';
 
   const payload = {
     codigo: orderId,
@@ -3228,6 +3395,7 @@ checkoutBtn.addEventListener('click', async () => {
     solo_bebidas: soloBebidas,
     tipo_preparacion,
     salta_cocina,
+    metodo_pago: metodoPago,
   };
   if (tipo === 'domicilio') {
     payload.nombre_cliente = fNombreCliente.value.trim();
@@ -3238,12 +3406,10 @@ checkoutBtn.addEventListener('click', async () => {
 
   const { error } = await sb.from('pedidos').insert(payload);
 
-  checkoutBtn.disabled = false;
-  checkoutBtn.innerHTML = checkoutBtn.dataset.originalHtml || checkoutBtn.innerHTML;
-
   if (error) {
     console.error(error);
-    contactError.textContent = 'No se ha podido enviar el pedido. Inténtalo de nuevo en unos segundos.';
+    cartBody.style.display = '';
+    contactError.textContent = 'El pago se procesó pero no se ha podido enviar el pedido. Inténtalo de nuevo.';
     contactError.classList.add('show');
     return;
   }
@@ -3280,6 +3446,15 @@ checkoutBtn.addEventListener('click', async () => {
       msg += `%0A(Incluye 2€ de envío)`;
     }
     window.open(`https://wa.me/34670503183?text=${msg}`, '_blank');
+  } else if (contactChannel === 'email') {
+    let bodyMsg = `Pedido Nº ${orderId} - K-leta%0D%0A${tipoLabel(tipo)}%0D%0A%0D%0A`;
+    entries.forEach(([id, qty]) => {
+      const p = PRODUCT_MAP[id];
+      bodyMsg += `${qty} x ${p.nombre} (${formatBadge(p)}) - ${euros(p.precio * qty)}%0D%0A`;
+    });
+    bodyMsg += `%0D%0ATotal: ${euros(cartTotal())}%0D%0ASeguimiento: ${seguimientoUrl.toString()}`;
+    const destinatario = 'pedidos@k-leta.es';
+    window.open(`mailto:${destinatario}?subject=${encodeURIComponent('Pedido ' + orderId + ' - K-leta')}&body=${bodyMsg}`, '_blank');
   }
 
   orderIdText.textContent = 'Pedido nº ' + orderId + ' · ' + tipoLabel(tipo);
@@ -3291,7 +3466,7 @@ checkoutBtn.addEventListener('click', async () => {
   cart = {};
   saveCart(cart);
   updateCartBadgeOnly();
-});
+}
 
 newOrderBtn.addEventListener('click', () => {
   orderConfirm.style.display = 'none';

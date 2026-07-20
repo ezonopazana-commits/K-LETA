@@ -56,6 +56,7 @@ nav.links a:hover { color: var(--gold-light); }
   font-weight:800; font-size:0.9rem; cursor:pointer; transition: transform .15s ease;
 }
 .card button:active { transform: scale(0.97); }
+.card button:disabled { background: rgba(199,167,92,0.35); color: rgba(28,31,36,0.6); cursor: wait; }
 .card.readonly { opacity:0.75; }
 </style>
 </head>
@@ -158,12 +159,17 @@ async function fetchOrders() {
   if (!error) { ORDERS = data; render(); }
 }
 
-async function advance(id, currentState) {
+async function advance(id, currentState, btn) {
   const info = NEXT_STATE[currentState];
   if (!info) return;
   const update = { estado: info.next };
   update[info.tcol] = new Date().toISOString();
-  await sb.from('pedidos').update(update).eq('id', id);
+  const { error } = await sb.from('pedidos').update(update).eq('id', id);
+  if (error) {
+    console.error('Error al avanzar estado:', error);
+    if (btn) { btn.disabled = false; btn.textContent = 'Reintentar: ' + info.label; }
+    fetchOrders();
+  }
 }
 
 function cardHtml(order, state) {
@@ -222,7 +228,8 @@ document.addEventListener('click', (e) => {
   const btn = e.target.closest('[data-advance]');
   if (btn) {
     btn.disabled = true;
-    advance(btn.dataset.advance, btn.dataset.state);
+    btn.dataset.originalLabel = btn.dataset.originalLabel || btn.textContent;
+    advance(btn.dataset.advance, btn.dataset.state, btn);
   }
 });
 
@@ -234,6 +241,9 @@ updateClock();
 
 // Cronómetro constante: se actualiza cada segundo sin reconstruir todo el tablero
 setInterval(tickTimers, 1000);
+
+// Refresco de respaldo cada 15s por si la conexión en tiempo real se corta (evita que el tablero se quede "congelado")
+setInterval(fetchOrders, 15000);
 
 // --- Acceso con PIN ---
 const gate = document.getElementById('gate');

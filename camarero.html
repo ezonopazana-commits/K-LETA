@@ -51,6 +51,7 @@ nav.links a:hover { color: var(--gold-light); }
 .timer.ok { color: var(--ok); } .timer.warn { color: var(--warn); } .timer.bad { color: var(--bad); }
 .drink-hint { font-size:0.78rem; background: rgba(199,167,92,0.1); border:1px solid rgba(199,167,92,0.3); border-radius:10px; padding:8px 10px; margin-bottom:10px; }
 .card button { width:100%; padding:13px; border:none; border-radius:10px; background: var(--gold); color: var(--ink-2); font-weight:800; font-size:0.9rem; cursor:pointer; margin-top:4px; }
+.card button:disabled { background: rgba(199,167,92,0.35); color: rgba(28,31,36,0.6); cursor: wait; }
 .card button.secondary { background: transparent; border:1px solid rgba(245,241,231,0.25); color: var(--cream); }
 .badge-contacto { font-size:0.75rem; color: rgba(245,241,231,0.55); margin-bottom:8px; }
 </style>
@@ -168,26 +169,36 @@ async function fetchOrders() {
   if (!error) { ORDERS = data; render(); }
 }
 
-async function pasarACocina(order) {
+async function pasarACocina(order, btn) {
+  let error;
   if (order.salta_cocina) {
-    // Pedido que salta cocina (solo bebidas, o desayuno/merienda sin tostada): va directo a "listo"
-    await sb.from('pedidos').update({
+    ({ error } = await sb.from('pedidos').update({
       estado: 'listo',
       t_listo: new Date().toISOString(),
-    }).eq('id', order.id);
+    }).eq('id', order.id));
   } else {
-    await sb.from('pedidos').update({
+    ({ error } = await sb.from('pedidos').update({
       estado: 'pendiente_cocina',
       t_pendiente_cocina: new Date().toISOString(),
-    }).eq('id', order.id);
+    }).eq('id', order.id));
+  }
+  if (error) {
+    console.error('Error al pasar a cocina:', error);
+    if (btn) { btn.disabled = false; btn.textContent = 'Reintentar'; }
+    fetchOrders();
   }
 }
 
-async function marcarEntregado(order) {
-  await sb.from('pedidos').update({
+async function marcarEntregado(order, btn) {
+  const { error } = await sb.from('pedidos').update({
     estado: 'entregado',
     t_entregado: new Date().toISOString(),
   }).eq('id', order.id);
+  if (error) {
+    console.error('Error al marcar entregado:', error);
+    if (btn) { btn.disabled = false; btn.textContent = 'Reintentar'; }
+    fetchOrders();
+  }
 }
 
 function waLink(order, texto) {
@@ -290,16 +301,19 @@ document.addEventListener('click', (e) => {
   if (cocinaBtn) {
     cocinaBtn.disabled = true;
     const order = ORDERS.find(o => o.id === cocinaBtn.dataset.cocina);
-    if (order) pasarACocina(order);
+    if (order) pasarACocina(order, cocinaBtn);
   } else if (entregarBtn) {
     entregarBtn.disabled = true;
     const order = ORDERS.find(o => o.id === entregarBtn.dataset.entregar);
-    if (order) marcarEntregado(order);
+    if (order) marcarEntregado(order, entregarBtn);
   }
 });
 
 // Cronómetro constante: se actualiza cada segundo sin reconstruir todo el tablero
 setInterval(tickTimers, 1000);
+
+// Refresco de respaldo cada 15s por si la conexión en tiempo real se corta
+setInterval(fetchOrders, 15000);
 
 const gate = document.getElementById('gate');
 const app = document.getElementById('app');
