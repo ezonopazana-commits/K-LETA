@@ -48,6 +48,14 @@ nav.links a:hover { color: var(--gold-light); }
 .prod-actions { display:flex; gap:6px; padding:0 14px 14px; }
 .prod-actions button { flex:1; padding:7px; border-radius:8px; border:1px solid rgba(28,31,36,0.15); background:#fff; font-size:0.76rem; cursor:pointer; }
 .prod-actions button.danger { color:var(--bad); border-color:rgba(196,72,60,0.35); }
+.prod-reorder { display:flex; align-items:center; justify-content:space-between; gap:6px; padding:8px 14px; background:var(--cream-dim); border-top:1px solid rgba(28,31,36,0.06); border-bottom:1px solid rgba(28,31,36,0.06); }
+.prod-reorder button {
+  flex:1; padding:6px 4px; border-radius:7px; border:1px solid rgba(28,31,36,0.15); background:#fff;
+  font-size:0.72rem; font-weight:700; cursor:pointer; color:var(--ink); transition:background .15s ease, opacity .15s ease;
+}
+.prod-reorder button:hover:not(:disabled) { background:var(--gold); border-color:var(--gold); }
+.prod-reorder button:disabled { opacity:0.3; cursor:not-allowed; }
+.prod-reorder .reorder-pos { font-size:0.68rem; color:#888; font-weight:600; white-space:nowrap; padding:0 2px; }
 
 .modal-overlay { position:fixed; inset:0; background:rgba(10,11,13,0.6); backdrop-filter:blur(3px); z-index:200; display:none; align-items:center; justify-content:center; padding:20px; }
 .modal-overlay.open { display:flex; }
@@ -193,7 +201,7 @@ function render() {
     block.innerHTML = `<h2>${cat}</h2><div class="prod-grid" id="grid-${cat.replace(/\s/g,'')}"></div>`;
     catalog.appendChild(block);
     const grid = block.querySelector('.prod-grid');
-    items.forEach(p => {
+    items.forEach((p, i) => {
       const card = document.createElement('div');
       card.className = 'prod-card' + (p.activo ? '' : ' inactive');
       const media = p.imagen && p.imagen.startsWith('icono:')
@@ -206,6 +214,11 @@ function render() {
           <div class="meta">${formatBadge(p)}</div>
           <div class="price">${euros(p.precio)}${p.coste !== null && p.coste !== undefined ? ` <span style="font-size:0.7rem; color:#3FA766;">(margen ${euros(p.precio - p.coste)})</span>` : ''}</div>
         </div>
+        <div class="prod-reorder">
+          <button data-move-up="${p.id}" data-cat="${cat}" aria-label="Subir posición" ${i === 0 ? 'disabled' : ''}>↑ Subir</button>
+          <span class="reorder-pos">${i + 1} / ${items.length}</span>
+          <button data-move-down="${p.id}" data-cat="${cat}" aria-label="Bajar posición" ${i === items.length - 1 ? 'disabled' : ''}>↓ Bajar</button>
+        </div>
         <div class="prod-actions">
           <button data-edit="${p.id}">Editar</button>
           <button data-toggle="${p.id}">${p.activo ? 'Ocultar' : 'Mostrar'}</button>
@@ -214,6 +227,27 @@ function render() {
       grid.appendChild(card);
     });
   });
+}
+
+async function moverProducto(cat, productId, direccion) {
+  const items = PRODUCTOS.filter(p => p.categoria === cat).slice().sort((a, b) => a.orden - b.orden);
+  const idx = items.findIndex(p => p.id === productId);
+  const otroIdx = idx + direccion;
+  if (idx === -1 || otroIdx < 0 || otroIdx >= items.length) return;
+
+  const a = items[idx], b = items[otroIdx];
+  const ordenA = a.orden, ordenB = b.orden;
+  // Si ambos productos comparten el mismo numero de orden (datos antiguos), primero se normaliza toda la categoria
+  if (ordenA === ordenB) {
+    await Promise.all(items.map((p, i) => sb.from('productos').update({ orden: i }).eq('id', p.id)));
+    await fetchProductos();
+    return moverProducto(cat, productId, direccion);
+  }
+  await Promise.all([
+    sb.from('productos').update({ orden: ordenB }).eq('id', a.id),
+    sb.from('productos').update({ orden: ordenA }).eq('id', b.id),
+  ]);
+  await fetchProductos();
 }
 
 function openModal(product) {
@@ -289,6 +323,12 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
   };
   if (!payload.nombre) { alert('Ponle un nombre al producto.'); return; }
 
+  if (!id) {
+    // Producto nuevo: se coloca al final de su categoria
+    const delCat = PRODUCTOS.filter(p => p.categoria === payload.categoria);
+    payload.orden = delCat.length ? Math.max(...delCat.map(p => p.orden)) + 1 : 0;
+  }
+
   if (id) {
     await sb.from('productos').update(payload).eq('id', id);
   } else {
@@ -302,6 +342,8 @@ document.getElementById('catalog').addEventListener('click', async (e) => {
   const editBtn = e.target.closest('[data-edit]');
   const toggleBtn = e.target.closest('[data-toggle]');
   const delBtn = e.target.closest('[data-del]');
+  const upBtn = e.target.closest('[data-move-up]');
+  const downBtn = e.target.closest('[data-move-down]');
   if (editBtn) {
     const p = PRODUCTOS.find(x => x.id === editBtn.dataset.edit);
     if (p) openModal(p);
@@ -313,6 +355,12 @@ document.getElementById('catalog').addEventListener('click', async (e) => {
       await sb.from('productos').delete().eq('id', delBtn.dataset.del);
       fetchProductos();
     }
+  } else if (upBtn && !upBtn.disabled) {
+    upBtn.disabled = true;
+    await moverProducto(upBtn.dataset.cat, upBtn.dataset.moveUp, -1);
+  } else if (downBtn && !downBtn.disabled) {
+    downBtn.disabled = true;
+    await moverProducto(downBtn.dataset.cat, downBtn.dataset.moveDown, 1);
   }
 });
 
