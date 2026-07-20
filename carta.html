@@ -318,6 +318,48 @@ main { padding: 40px 0 90px; }
 .payment-form .field-row-2 input { margin-bottom: 0; }
 .crypto-box { background: #fff; border: 1px solid rgba(28,31,36,0.1); border-radius: 14px; padding: 16px; margin-bottom: 12px; }
 .crypto-box .wallet { font-family: monospace; font-size: 0.78rem; background: var(--cream-dim); padding: 8px 10px; border-radius: 8px; word-break: break-all; margin-top: 8px; }
+
+/* ---------- SELECTOR DE CRIPTOMONEDA ---------- */
+.crypto-select { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
+.crypto-chip {
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  border: 1.5px solid rgba(28,31,36,0.12); background: #fff; border-radius: 16px;
+  padding: 14px 6px; cursor: pointer; font-size: 0.78rem; font-weight: 700; color: var(--ink);
+  transition: border-color .2s var(--ease), transform .15s var(--ease), box-shadow .2s var(--ease);
+}
+.crypto-chip:hover { transform: translateY(-2px); box-shadow: 0 10px 22px -14px rgba(0,0,0,0.3); }
+.crypto-chip[aria-pressed="true"] { border-color: var(--gold); background: rgba(199,167,92,0.06); box-shadow: 0 10px 22px -14px rgba(199,167,92,0.5); }
+.crypto-chip .ci-sub { font-size: 0.65rem; font-weight: 500; color: var(--ink-soft); }
+
+.crypto-card {
+  background: linear-gradient(155deg, var(--ink) 0%, #23262C 100%); border-radius: 18px;
+  padding: 22px 22px 20px; color: var(--cream); margin-bottom: 14px; position: relative; overflow: hidden;
+}
+.crypto-card::before {
+  content: ''; position: absolute; top: -40%; right: -20%; width: 220px; height: 220px; border-radius: 50%;
+  background: radial-gradient(circle, var(--crypto-glow, rgba(199,167,92,0.18)), transparent 70%);
+}
+.crypto-card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; position: relative; }
+.crypto-card-head .cc-name { font-family: 'Fraunces', serif; font-size: 1.1rem; font-weight: 700; }
+.crypto-card-head .cc-network {
+  font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.05em; color: rgba(245,241,231,0.55);
+  background: rgba(245,241,231,0.08); padding: 2px 9px; border-radius: 999px; display: inline-block; margin-top: 2px;
+}
+.crypto-amount-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 14px; position: relative; }
+.crypto-amount-row .ca-label { font-size: 0.75rem; color: rgba(245,241,231,0.5); }
+.crypto-amount-row .ca-value { font-family: 'Fraunces', serif; font-size: 1.3rem; font-weight: 700; color: var(--gold-light); }
+.crypto-qr-wrap { background: #fff; border-radius: 12px; padding: 14px; display: flex; justify-content: center; margin-bottom: 14px; position: relative; }
+.crypto-qr-wrap svg { width: 130px; height: 130px; display: block; }
+.crypto-wallet-row {
+  display: flex; align-items: center; gap: 8px; background: rgba(245,241,231,0.08);
+  border: 1px solid rgba(245,241,231,0.15); border-radius: 10px; padding: 10px 12px; position: relative;
+}
+.crypto-wallet-row .cw-addr { font-family: monospace; font-size: 0.74rem; flex-grow: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.crypto-wallet-row button {
+  background: var(--gold); color: var(--ink-2); border: none; border-radius: 7px; padding: 5px 10px;
+  font-size: 0.7rem; font-weight: 700; cursor: pointer; flex-shrink: 0;
+}
+.crypto-note { font-size: 0.7rem; color: rgba(245,241,231,0.4); margin-top: 12px; position: relative; }
 .pay-spinner {
   width: 44px; height: 44px; border-radius: 50%; margin: 0 auto;
   border: 4px solid rgba(199,167,92,0.2); border-top-color: var(--gold);
@@ -3317,15 +3359,70 @@ paymentMethods.addEventListener('click', (e) => {
         <p style="font-size:0.8rem; color:var(--ink-soft);">Recibirás la solicitud de pago en tu app del banco (simulado).</p>
       </div>`;
   } else if (metodoPago === 'cripto') {
-    const wallet = 'bc1q' + Array.from({length: 34}, () => 'abcdef0123456789'[Math.floor(Math.random()*16)]).join('');
     paymentFormArea.innerHTML = `
-      <div class="crypto-box">
-        <p style="font-size:0.82rem; color:var(--ink-soft);">Envía el equivalente a <strong>${euros(cartTotal())}</strong> a esta dirección (BTC, simulado):</p>
-        <div class="wallet">${wallet}</div>
-      </div>`;
+      <div class="crypto-select" id="cryptoSelect">
+        <button type="button" class="crypto-chip" data-crypto="usdt" aria-pressed="false">${CRYPTO_ICONS.usdt}<span>USDT</span><span class="ci-sub">TRC20</span></button>
+        <button type="button" class="crypto-chip" data-crypto="bnb" aria-pressed="false">${CRYPTO_ICONS.bnb}<span>BNB</span><span class="ci-sub">BEP20</span></button>
+        <button type="button" class="crypto-chip" data-crypto="eth" aria-pressed="false">${CRYPTO_ICONS.eth}<span>ETH</span><span class="ci-sub">ERC20</span></button>
+      </div>
+      <div id="cryptoWalletBox"></div>`;
+    payNowBtn.style.display = 'none';
+    return;
   }
   payNowBtn.style.display = 'block';
-  payNowBtn.textContent = metodoPago === 'cripto' ? 'He enviado el pago' : 'Confirmar pago';
+  payNowBtn.textContent = 'Confirmar pago';
+});
+
+// ---- Iconos e info de red por criptomoneda ----
+const CRYPTO_ICONS = {
+  usdt: `<svg width="30" height="30" viewBox="0 0 32 32"><circle cx="16" cy="16" r="16" fill="#26A17B"/><path d="M17.3 17.1v-.01c-.1.01-.63.04-1.8.04-.94 0-1.6-.03-1.83-.04v.02c-3.03-.13-5.29-.67-5.29-1.3 0-.65 2.26-1.18 5.29-1.3v2.06c.24.02.9.06 1.85.06 1.11 0 1.67-.05 1.78-.06v-2.06c3.02.13 5.28.66 5.28 1.3 0 .64-2.26 1.17-5.28 1.29zm0-2.8v-1.85h4.22V9.4H10.5v3.05h4.22v1.85c-3.43.16-6.01.83-6.01 1.64 0 .8 2.58 1.48 6.01 1.64v5.87h2.58v-5.87c3.42-.16 6-.83 6-1.64 0-.81-2.58-1.48-6-1.64z" fill="#fff"/></svg>`,
+  bnb: `<svg width="30" height="30" viewBox="0 0 32 32"><circle cx="16" cy="16" r="16" fill="#F0B90B"/><path d="M12.1 14.2 16 10.3l3.9 3.9 2.3-2.3L16 5.7l-6.2 6.2 2.3 2.3zM5.7 16l2.3-2.3L10.3 16l-2.3 2.3L5.7 16zm6.4 1.8L16 21.7l3.9-3.9 2.3 2.3-6.2 6.2-6.2-6.2 2.3-2.3zM21.7 16l2.3-2.3L26.3 16l-2.3 2.3-2.3-2.3zm-3.4 0L16 13.6 13.7 16l2.3 2.4L18.3 16z" fill="#fff"/></svg>`,
+  eth: `<svg width="30" height="30" viewBox="0 0 32 32"><circle cx="16" cy="16" r="16" fill="#627EEA"/><path d="M16.3 4v8.9l7.5 3.3z" fill="#fff" opacity=".6"/><path d="M16.3 4 8.7 16.2l7.6-3.3z" fill="#fff"/><path d="M16.3 21.9v6.1l7.5-10.4z" fill="#fff" opacity=".6"/><path d="M16.3 28v-6.1l-7.6-4.3z" fill="#fff"/><path d="M16.3 20.5 23.8 16 16.3 12.9z" fill="#fff" opacity=".2"/><path d="M8.7 16 16.3 20.5v-7.6z" fill="#fff" opacity=".6"/></svg>`,
+};
+const CRYPTO_INFO = {
+  usdt: { nombre: 'USDT · Tether', network: 'Red TRC20', color: 'rgba(38,161,123,0.28)', rate: 1.08, symbol: 'USDT', prefix: 'T', charset: 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz123456789', len: 33 },
+  bnb: { nombre: 'BNB · BNB Smart Chain', network: 'Red BEP20', color: 'rgba(240,185,11,0.25)', rate: 0.0018, symbol: 'BNB', prefix: '0x', charset: '0123456789abcdef', len: 40 },
+  eth: { nombre: 'ETH · Ethereum', network: 'Red ERC20', color: 'rgba(98,126,234,0.28)', rate: 0.00034, symbol: 'ETH', prefix: '0x', charset: '0123456789abcdef', len: 40 },
+};
+
+document.addEventListener('click', (e) => {
+  const chip = e.target.closest('#cryptoSelect [data-crypto]');
+  if (!chip) return;
+  const key = chip.dataset.crypto;
+  document.querySelectorAll('#cryptoSelect .crypto-chip').forEach(c => c.setAttribute('aria-pressed', c === chip ? 'true' : 'false'));
+
+  const info = CRYPTO_INFO[key];
+  const addr = info.prefix + Array.from({length: info.len}, () => info.charset[Math.floor(Math.random() * info.charset.length)]).join('');
+  const cryptoAmount = (cartTotal() * info.rate).toFixed(key === 'usdt' ? 2 : 5);
+
+  const box = document.getElementById('cryptoWalletBox');
+  box.innerHTML = `
+    <div class="crypto-card" style="--crypto-glow:${info.color}">
+      <div class="crypto-card-head">
+        ${CRYPTO_ICONS[key]}
+        <div><div class="cc-name">${info.nombre}</div><div class="cc-network">${info.network}</div></div>
+      </div>
+      <div class="crypto-amount-row">
+        <span class="ca-label">Importe a enviar</span>
+        <span class="ca-value">${cryptoAmount} ${info.symbol}</span>
+      </div>
+      <div class="crypto-qr-wrap" id="cryptoQrWrap"></div>
+      <div class="crypto-wallet-row">
+        <span class="cw-addr">${addr}</span>
+        <button type="button" id="copyWalletBtn">Copiar</button>
+      </div>
+      <p class="crypto-note">Cotización simulada · ${info.network} · No se realiza ningún cargo real.</p>
+    </div>`;
+  renderQR(addr, document.getElementById('cryptoQrWrap'));
+  document.getElementById('copyWalletBtn').addEventListener('click', () => {
+    navigator.clipboard?.writeText(addr);
+    const btn = document.getElementById('copyWalletBtn');
+    btn.textContent = '¡Copiado!';
+    setTimeout(() => btn.textContent = 'Copiar', 1200);
+  });
+
+  payNowBtn.style.display = 'block';
+  payNowBtn.textContent = 'He enviado el pago';
 });
 
 function validarPago() {
