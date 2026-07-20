@@ -106,10 +106,17 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
 const sb = supabase.createClient('https://gcmkrbqjwlrffnhhiojk.supabase.co', 'sb_publishable_9NYniFKapOV8WdOBnuKoBg_Q3rDyKjF');
 const PIN = '1234'; // PIN interno para el personal. Cámbialo aquí si quieres otro.
 
-// Tiempo de referencia por fase (segundos): recepción 2', ack cocina 3', inicio 4', penúltimo 3', último 3', entrega 2'
-const TARGETS = {
-  nuevo: 120, pendiente_cocina: 180, oido_cocina: 240, en_proceso: 180, ultimo_producto: 180, listo: 120,
+// Tiempo de referencia por fase (segundos), según tipología de preparación del pedido:
+//  - comida: recepción 2', ack cocina 3', inicio 4', penúltimo 3', último 3', entrega 2' (igual que antes)
+//  - desayuno_tostada: 1 minuto en cada fase de cocina
+// (bebida y desayuno_rapido no pasan por cocina, no aparecen en esta pantalla)
+const TARGETS_POR_TIPO = {
+  comida: { nuevo: 120, pendiente_cocina: 180, oido_cocina: 240, en_proceso: 180, ultimo_producto: 180, listo: 120 },
+  desayuno_tostada: { nuevo: 60, pendiente_cocina: 60, oido_cocina: 60, en_proceso: 60, ultimo_producto: 60, listo: 60 },
 };
+function targetsDe(order) {
+  return TARGETS_POR_TIPO[order.tipo_preparacion] || TARGETS_POR_TIPO.comida;
+}
 const START_COL = {
   nuevo: 't_nuevo', pendiente_cocina: 't_pendiente_cocina', oido_cocina: 't_oido_cocina',
   en_proceso: 't_en_proceso', ultimo_producto: 't_ultimo_producto', listo: 't_listo',
@@ -145,6 +152,7 @@ async function fetchOrders() {
   const since = new Date(Date.now() - 20 * 3600 * 1000).toISOString();
   const { data, error } = await sb.from('pedidos').select('*')
     .in('estado', STATES)
+    .eq('salta_cocina', false)
     .gte('created_at', since)
     .order('t_nuevo', { ascending: true });
   if (!error) { ORDERS = data; render(); }
@@ -162,7 +170,7 @@ function cardHtml(order, state) {
   const items = (order.items || []).map(it => `${it.qty}× ${it.nombre}`).join(', ');
   const info = NEXT_STATE[state];
   const startIso = order[START_COL[state]] || order.t_nuevo;
-  const target = TARGETS[state];
+  const target = targetsDe(order)[state];
   return `
     <div class="card" data-id="${order.id}">
       <div class="top-row">
@@ -236,7 +244,7 @@ const pinErr = document.getElementById('pinErr');
 async function fetchCounter() {
   const startOfDay = new Date(); startOfDay.setHours(0,0,0,0);
   const { count, error } = await sb.from('pedidos').select('id', { count: 'exact', head: true })
-    .eq('solo_bebidas', false)
+    .eq('salta_cocina', false)
     .not('t_listo', 'is', null)
     .gte('t_listo', startOfDay.toISOString());
   if (!error) document.getElementById('counterBadge').textContent = `Preparados hoy: ${count || 0}`;

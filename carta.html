@@ -160,6 +160,18 @@ main { padding: 40px 0 90px; }
 .form-error { color: #B23B3B; font-size: 0.78rem; margin-top: 6px; display: none; }
 .form-error.show { display: block; }
 
+/* ---------- DOMICILIO ---------- */
+.domicilio-fields { margin-bottom: 18px; }
+.domicilio-fields legend { font-size: 0.85rem; font-weight: 600; margin-bottom: 10px; color: var(--ink); }
+.domicilio-fields input, .domicilio-fields select {
+  width: 100%; padding: 11px 14px; border-radius: 10px; border: 1px solid rgba(28,31,36,0.15);
+  font-family: 'Inter', sans-serif; font-size: 0.9rem; margin-bottom: 8px;
+}
+.domicilio-fields input:focus, .domicilio-fields select:focus { outline: none; border-color: var(--gold); }
+.domicilio-fields .field-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.domicilio-fields .field-row-2 input { margin-bottom: 0; }
+.saved-address-select { background: rgba(199,167,92,0.08); border-color: rgba(199,167,92,0.4) !important; font-weight: 600; }
+
 /* ---------- TARJETA: controles de cantidad y añadir ---------- */
 .product-footer { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 16px; }
 .qty-stepper { display: flex; align-items: center; gap: 0; border: 1px solid rgba(28,31,36,0.18); border-radius: 999px; overflow: hidden; }
@@ -200,21 +212,21 @@ main { padding: 40px 0 90px; }
 .cart-overlay.open { opacity: 1; pointer-events: auto; }
 .cart-panel {
   position: fixed; top: 50%; left: 50%; z-index: 170;
-  width: min(460px, 92vw);
-  max-height: min(720px, 88vh);
+  width: min(940px, 94vw);
+  max-height: min(680px, 88vh);
   background: var(--cream);
   border-radius: 26px;
   border: 1px solid rgba(199,167,92,0.35);
   box-shadow: 0 40px 90px -20px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.03);
   transform: translate(-50%, -50%) scale(0.94);
   opacity: 0; pointer-events: none;
-  transition: transform .4s var(--ease), opacity .3s var(--ease);
+  transition: transform .4s var(--ease), opacity .3s var(--ease), width .2s;
   display: flex; flex-direction: column;
   overflow: hidden;
 }
 .cart-panel.open { transform: translate(-50%, -50%) scale(1); opacity: 1; pointer-events: auto; }
 .cart-header {
-  display: flex; align-items: center; justify-content: space-between; padding: 22px 26px;
+  display: flex; align-items: center; justify-content: space-between; padding: 20px 26px;
   background: linear-gradient(120deg, var(--ink) 0%, #262A31 100%); color: var(--cream); flex-shrink: 0;
   border-bottom: 1px solid rgba(199,167,92,0.25);
 }
@@ -226,7 +238,10 @@ main { padding: 40px 0 90px; }
   display: flex; align-items: center; justify-content: center; transition: background .2s var(--ease), transform .2s var(--ease);
 }
 .cart-close:hover { background: rgba(199,167,92,0.25); transform: rotate(90deg); }
-.cart-items { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 18px 26px; }
+
+.cart-body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: row; overflow: hidden; }
+
+.cart-items { flex: 1.4 1 0; min-width: 0; min-height: 0; overflow-y: auto; padding: 20px 26px; }
 .cart-items::-webkit-scrollbar { width: 8px; }
 .cart-items::-webkit-scrollbar-thumb { background: rgba(199,167,92,0.35); border-radius: 999px; }
 .cart-items::-webkit-scrollbar-track { background: transparent; }
@@ -239,9 +254,21 @@ main { padding: 40px 0 90px; }
 .cart-item-row { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; }
 .cart-item-price { font-weight: 700; font-family: 'Fraunces', serif; color: var(--gold-dark); }
 .remove-btn { background: none; border: none; color: var(--ink-soft); font-size: 0.78rem; text-decoration: underline; cursor: pointer; padding: 0; }
-.cart-footer { flex-shrink: 0; max-height: 46vh; overflow-y: auto; padding: 18px 26px 24px; border-top: 1px solid rgba(28,31,36,0.1); background: #fff; }
+
+.cart-footer {
+  flex: 1 1 0; min-width: 0; max-width: 380px; overflow-y: auto; padding: 20px 24px 22px;
+  border-left: 1px solid rgba(28,31,36,0.1); background: #fff;
+}
 .cart-footer::-webkit-scrollbar { width: 8px; }
 .cart-footer::-webkit-scrollbar-thumb { background: rgba(199,167,92,0.35); border-radius: 999px; }
+
+@media (max-width: 760px) {
+  .cart-panel { width: min(480px, 96vw); max-height: min(760px, 92vh); }
+  .cart-body { flex-direction: column; }
+  .cart-items { flex: 1 1 auto; max-height: 48vh; }
+  .cart-footer { flex: 0 0 auto; max-width: none; max-height: 42vh; border-left: none; border-top: 1px solid rgba(28,31,36,0.1); }
+}
+
 .cart-note { font-size: 0.78rem; color: var(--ink-soft); margin-bottom: 14px; }
 .cart-total-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 16px; }
 .cart-total-row span:first-child { font-size: 0.95rem; }
@@ -351,10 +378,65 @@ footer a { color: var(--gold-light); text-decoration: none; }
     <h2>Tu pedido</h2>
     <button class="cart-close" id="cartClose" aria-label="Cerrar carrito">×</button>
   </div>
-  <div class="cart-items" id="cartItems">
-    <div class="cart-empty" id="cartEmpty">
-      <p>Tu carrito está vacío.</p>
-      <p style="font-size:0.85rem; margin-top:8px;">Añade tapas, raciones o bebidas desde la carta.</p>
+  <div class="cart-body" id="cartBody">
+    <div class="cart-items" id="cartItems">
+      <div class="cart-empty" id="cartEmpty">
+        <p>Tu carrito está vacío.</p>
+        <p style="font-size:0.85rem; margin-top:8px;">Añade tapas, raciones o bebidas desde la carta.</p>
+      </div>
+    </div>
+    <div class="cart-footer" id="cartFooter">
+      <fieldset class="order-type" id="orderTypeFieldset">
+        <legend>¿Cómo quieres tu pedido?</legend>
+        <div class="order-type-options">
+          <label class="order-type-option" data-opt="local">
+            <input type="radio" name="tipoPedido" value="local">
+            <span class="otxt">Comer en el local<span class="osub">La bebida se sirve al momento</span></span>
+          </label>
+          <label class="order-type-option" data-opt="recoger">
+            <input type="radio" name="tipoPedido" value="recoger">
+            <span class="otxt">Recoger en el local<span class="osub">La bebida se prepara cuando llegues</span></span>
+          </label>
+          <label class="order-type-option" data-opt="domicilio">
+            <input type="radio" name="tipoPedido" value="domicilio">
+            <span class="otxt">A domicilio<span class="osub">Mínimo 15 € · envío 2 € · solo Cádiz capital</span></span>
+          </label>
+        </div>
+      </fieldset>
+      <fieldset class="contact-fields" id="contactFieldset">
+        <legend>¿Cómo te avisamos cuando esté listo?</legend>
+        <div class="contact-channel" role="group" aria-label="Canal de contacto">
+          <button type="button" data-channel="whatsapp" aria-pressed="true">📱 WhatsApp</button>
+          <button type="button" data-channel="email" aria-pressed="false">✉️ Email</button>
+        </div>
+        <label class="visually-hidden" for="contactValue">Tu número de WhatsApp</label>
+        <input type="tel" id="contactValue" placeholder="Tu número de WhatsApp (ej. 600 11 22 33)" inputmode="tel">
+        <p class="form-error" id="contactError">Introduce un contacto válido para poder avisarte.</p>
+      </fieldset>
+      <fieldset class="domicilio-fields" id="domicilioFieldset" style="display:none;">
+        <legend>Datos de entrega</legend>
+        <label class="visually-hidden" for="savedAddressSelect">Direcciones guardadas</label>
+        <select id="savedAddressSelect" class="saved-address-select" style="display:none;"></select>
+        <div class="field-row-2">
+          <div><label class="visually-hidden" for="fNombreCliente">Nombre</label><input type="text" id="fNombreCliente" placeholder="Nombre"></div>
+          <div><label class="visually-hidden" for="fApellidoCliente">Primer apellido</label><input type="text" id="fApellidoCliente" placeholder="Primer apellido"></div>
+        </div>
+        <label class="visually-hidden" for="fDireccion">Dirección</label>
+        <input type="text" id="fDireccion" placeholder="Calle y número">
+        <label class="visually-hidden" for="fCP">Código postal</label>
+        <input type="text" id="fCP" placeholder="Código postal (ej. 11003)" inputmode="numeric" maxlength="5">
+        <p class="form-error" id="domicilioError">Revisa los datos de entrega — todos los campos son obligatorios.</p>
+        <p class="form-error" id="cpError">Solo repartimos a domicilio en Cádiz capital (códigos postales 11001–11012). Prueba con "Recoger en el local".</p>
+      </fieldset>
+      <p class="cart-note">Pedido a domicilio: mínimo 15 € · envío 2 €. Para llevar o en el local, sin mínimo.</p>
+      <div class="cart-total-row">
+        <span>Total</span>
+        <span class="total-amount" id="cartTotal">0,00 €</span>
+      </div>
+      <button class="checkout-btn" id="checkoutBtn" disabled>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="white" aria-hidden="true"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2 22l5.29-1.39a9.9 9.9 0 004.75 1.21h.01c5.46 0 9.9-4.45 9.9-9.91C21.96 6.45 17.5 2 12.04 2zm5.8 14.06c-.24.68-1.4 1.3-1.93 1.38-.5.08-1.12.11-1.8-.11-.42-.13-.96-.31-1.65-.6-2.9-1.25-4.8-4.16-4.94-4.35-.14-.19-1.18-1.57-1.18-3 0-1.42.75-2.12 1.02-2.41.26-.28.58-.35.77-.35.19 0 .39 0 .55.01.18.01.42-.07.65.5.24.58.81 2 .88 2.14.07.14.11.31.02.5-.09.19-.14.31-.28.47-.14.16-.29.36-.42.48-.14.14-.28.28-.12.55.16.28.71 1.17 1.52 1.9 1.05.94 1.93 1.23 2.21 1.37.28.14.44.12.6-.07.16-.19.68-.79.87-1.06.19-.28.37-.23.63-.14.26.09 1.64.77 1.92.91.28.14.47.21.53.33.07.12.07.68-.17 1.36z"/></svg>
+        Finalizar pedido por WhatsApp
+      </button>
     </div>
   </div>
   <div class="order-confirm" id="orderConfirm" style="display:none;" aria-live="polite">
@@ -363,44 +445,6 @@ footer a { color: var(--gold-light); text-decoration: none; }
     <div class="qr-box" id="qrBox"></div>
     <p class="hint">Escanea este código para <strong>seguir tu pedido en directo</strong>, o guarda el enlace. Te avisaremos en cuanto esté listo. Tu código de pedido es <strong id="orderIdText2"></strong>. No se imprime ningún ticket: todo es digital.</p>
     <button class="new-order-btn" id="newOrderBtn">Hacer otro pedido</button>
-  </div>
-  <div class="cart-footer" id="cartFooter">
-    <fieldset class="order-type" id="orderTypeFieldset">
-      <legend>¿Cómo quieres tu pedido?</legend>
-      <div class="order-type-options">
-        <label class="order-type-option" data-opt="local">
-          <input type="radio" name="tipoPedido" value="local">
-          <span class="otxt">Comer en el local<span class="osub">La bebida se sirve al momento</span></span>
-        </label>
-        <label class="order-type-option" data-opt="recoger">
-          <input type="radio" name="tipoPedido" value="recoger">
-          <span class="otxt">Recoger en el local<span class="osub">La bebida se prepara cuando llegues</span></span>
-        </label>
-        <label class="order-type-option" data-opt="domicilio">
-          <input type="radio" name="tipoPedido" value="domicilio">
-          <span class="otxt">A domicilio<span class="osub">Mínimo 15 € · envío 2 € · bebida lista para el repartidor</span></span>
-        </label>
-      </div>
-    </fieldset>
-    <fieldset class="contact-fields" id="contactFieldset">
-      <legend>¿Cómo te avisamos cuando esté listo?</legend>
-      <div class="contact-channel" role="group" aria-label="Canal de contacto">
-        <button type="button" data-channel="whatsapp" aria-pressed="true">📱 WhatsApp</button>
-        <button type="button" data-channel="email" aria-pressed="false">✉️ Email</button>
-      </div>
-      <label class="visually-hidden" for="contactValue">Tu número de WhatsApp</label>
-      <input type="tel" id="contactValue" placeholder="Tu número de WhatsApp (ej. 600 11 22 33)" inputmode="tel">
-      <p class="form-error" id="contactError">Introduce un contacto válido para poder avisarte.</p>
-    </fieldset>
-    <p class="cart-note">Pedido a domicilio: mínimo 15 € · envío 2 €. Para llevar o en el local, sin mínimo.</p>
-    <div class="cart-total-row">
-      <span>Total</span>
-      <span class="total-amount" id="cartTotal">0,00 €</span>
-    </div>
-    <button class="checkout-btn" id="checkoutBtn" disabled>
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="white" aria-hidden="true"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2 22l5.29-1.39a9.9 9.9 0 004.75 1.21h.01c5.46 0 9.9-4.45 9.9-9.91C21.96 6.45 17.5 2 12.04 2zm5.8 14.06c-.24.68-1.4 1.3-1.93 1.38-.5.08-1.12.11-1.8-.11-.42-.13-.96-.31-1.65-.6-2.9-1.25-4.8-4.16-4.94-4.35-.14-.19-1.18-1.57-1.18-3 0-1.42.75-2.12 1.02-2.41.26-.28.58-.35.77-.35.19 0 .39 0 .55.01.18.01.42-.07.65.5.24.58.81 2 .88 2.14.07.14.11.31.02.5-.09.19-.14.31-.28.47-.14.16-.29.36-.42.48-.14.14-.28.28-.12.55.16.28.71 1.17 1.52 1.9 1.05.94 1.93 1.23 2.21 1.37.28.14.44.12.6-.07.16-.19.68-.79.87-1.06.19-.28.37-.23.63-.14.26.09 1.64.77 1.92.91.28.14.47.21.53.33.07.12.07.68-.17 1.36z"/></svg>
-      Finalizar pedido por WhatsApp
-    </button>
   </div>
 </div>
 
@@ -2891,6 +2935,7 @@ const cartOverlay = document.getElementById('cartOverlay');
 const cartPanel = document.getElementById('cartPanel');
 const cartClose = document.getElementById('cartClose');
 const cartItemsEl = document.getElementById('cartItems');
+const cartBody = document.getElementById('cartBody');
 const cartEmptyEl = document.getElementById('cartEmpty');
 const cartTotalEl = document.getElementById('cartTotal');
 const checkoutBtn = document.getElementById('checkoutBtn');
@@ -3058,11 +3103,77 @@ const orderIdText2 = document.getElementById('orderIdText2');
 const qrBox = document.getElementById('qrBox');
 const newOrderBtn = document.getElementById('newOrderBtn');
 
+// ---- Datos de entrega a domicilio ----
+const domicilioFieldset = document.getElementById('domicilioFieldset');
+const domicilioError = document.getElementById('domicilioError');
+const cpError = document.getElementById('cpError');
+const fNombreCliente = document.getElementById('fNombreCliente');
+const fApellidoCliente = document.getElementById('fApellidoCliente');
+const fDireccion = document.getElementById('fDireccion');
+const fCP = document.getElementById('fCP');
+const savedAddressSelect = document.getElementById('savedAddressSelect');
+
+function cpValido(cp) {
+  const n = parseInt(cp, 10);
+  return /^\d{5}$/.test(cp) && n >= 11001 && n <= 11012;
+}
+
+async function cargarDireccionesGuardadas(telefono) {
+  savedAddressSelect.innerHTML = '';
+  savedAddressSelect.style.display = 'none';
+  if (!telefono || telefono.replace(/\D/g,'').length < 9) return;
+  const { data, error } = await sb.from('direcciones_cliente').select('*')
+    .eq('telefono', telefono.trim()).order('last_used_at', { ascending: false });
+  if (error || !data || data.length === 0) return;
+  savedAddressSelect.innerHTML = '<option value="">Elige una dirección guardada...</option>' +
+    data.map(d => `<option value="${d.id}">${d.direccion} (${d.codigo_postal})</option>`).join('') +
+    '<option value="__nueva__">+ Usar una dirección nueva</option>';
+  savedAddressSelect.style.display = 'block';
+  savedAddressSelect.dataset.direcciones = JSON.stringify(data);
+}
+
+savedAddressSelect.addEventListener('change', () => {
+  const val = savedAddressSelect.value;
+  if (!val || val === '__nueva__') {
+    fNombreCliente.value = ''; fApellidoCliente.value = ''; fDireccion.value = ''; fCP.value = '';
+    return;
+  }
+  const direcciones = JSON.parse(savedAddressSelect.dataset.direcciones || '[]');
+  const d = direcciones.find(x => x.id === val);
+  if (d) {
+    fNombreCliente.value = d.nombre; fApellidoCliente.value = d.apellido;
+    fDireccion.value = d.direccion; fCP.value = d.codigo_postal;
+  }
+});
+
+contactValue.addEventListener('blur', () => {
+  if (getTipoPedido() === 'domicilio' && contactChannel === 'whatsapp') cargarDireccionesGuardadas(contactValue.value);
+});
+
+function domicilioCompleto() {
+  return fNombreCliente.value.trim() && fApellidoCliente.value.trim() && fDireccion.value.trim() && fCP.value.trim();
+}
+
+// ---- Clasificacion del tipo de preparacion (afecta si pasa por cocina y los tiempos objetivo) ----
+function clasificarPreparacion(items) {
+  const cats = items.map(it => it.categoria);
+  const soloBebidas = cats.every(c => c === 'Bebidas');
+  const soloDesayuno = cats.every(c => c === 'Desayunos y meriendas');
+  const tieneTostada = items.some(it => it.nombre.includes('Tostada'));
+  if (soloBebidas) return { tipo_preparacion: 'bebida', salta_cocina: true };
+  if (soloDesayuno && !tieneTostada) return { tipo_preparacion: 'desayuno_rapido', salta_cocina: true };
+  if (soloDesayuno && tieneTostada) return { tipo_preparacion: 'desayuno_tostada', salta_cocina: false };
+  return { tipo_preparacion: 'comida', salta_cocina: false };
+}
+
 const orderTypeFieldset = document.getElementById('orderTypeFieldset');
 orderTypeFieldset.addEventListener('change', () => {
   document.querySelectorAll('.order-type-option').forEach(opt => {
     opt.classList.toggle('checked', opt.querySelector('input').checked);
   });
+  const esDomicilio = getTipoPedido() === 'domicilio';
+  domicilioFieldset.style.display = esDomicilio ? 'block' : 'none';
+  if (esDomicilio && contactChannel === 'whatsapp') cargarDireccionesGuardadas(contactValue.value);
   updateCartUI();
 });
 
@@ -3078,18 +3189,34 @@ checkoutBtn.addEventListener('click', async () => {
   }
   contactError.classList.remove('show');
 
+  domicilioError.classList.remove('show');
+  cpError.classList.remove('show');
+  if (tipo === 'domicilio') {
+    if (!domicilioCompleto()) {
+      domicilioError.classList.add('show');
+      fNombreCliente.focus();
+      return;
+    }
+    if (!cpValido(fCP.value.trim())) {
+      cpError.classList.add('show');
+      fCP.focus();
+      return;
+    }
+  }
+
   const orderId = 'K' + Date.now().toString().slice(-6);
   const itemsPayload = entries.map(([id, qty]) => {
     const p = PRODUCT_MAP[id];
     return { nombre: p.nombre, formato: formatBadge(p), qty, precio: p.precio, categoria: p.categoria, producto_id: id, coste: p.coste };
   });
   const soloBebidas = itemsPayload.every(it => it.categoria === 'Bebidas');
+  const { tipo_preparacion, salta_cocina } = clasificarPreparacion(itemsPayload);
 
   checkoutBtn.disabled = true;
   checkoutBtn.dataset.originalHtml = checkoutBtn.dataset.originalHtml || checkoutBtn.innerHTML;
   checkoutBtn.textContent = 'Enviando pedido...';
 
-  const { error } = await sb.from('pedidos').insert({
+  const payload = {
     codigo: orderId,
     tipo,
     items: itemsPayload,
@@ -3099,7 +3226,17 @@ checkoutBtn.addEventListener('click', async () => {
     canal_contacto: contactChannel,
     estado: 'nuevo',
     solo_bebidas: soloBebidas,
-  });
+    tipo_preparacion,
+    salta_cocina,
+  };
+  if (tipo === 'domicilio') {
+    payload.nombre_cliente = fNombreCliente.value.trim();
+    payload.apellido_cliente = fApellidoCliente.value.trim();
+    payload.direccion_entrega = fDireccion.value.trim();
+    payload.codigo_postal = fCP.value.trim();
+  }
+
+  const { error } = await sb.from('pedidos').insert(payload);
 
   checkoutBtn.disabled = false;
   checkoutBtn.innerHTML = checkoutBtn.dataset.originalHtml || checkoutBtn.innerHTML;
@@ -3109,6 +3246,22 @@ checkoutBtn.addEventListener('click', async () => {
     contactError.textContent = 'No se ha podido enviar el pedido. Inténtalo de nuevo en unos segundos.';
     contactError.classList.add('show');
     return;
+  }
+
+  // Guardar/actualizar la direccion en la libreta del cliente (por telefono)
+  if (tipo === 'domicilio' && contactChannel === 'whatsapp') {
+    const tel = contactValue.value.trim();
+    const dirTrim = fDireccion.value.trim();
+    const { data: existentes } = await sb.from('direcciones_cliente').select('id')
+      .eq('telefono', tel).eq('direccion', dirTrim).limit(1);
+    if (existentes && existentes.length > 0) {
+      await sb.from('direcciones_cliente').update({ last_used_at: new Date().toISOString() }).eq('id', existentes[0].id);
+    } else {
+      await sb.from('direcciones_cliente').insert({
+        telefono: tel, nombre: fNombreCliente.value.trim(), apellido: fApellidoCliente.value.trim(),
+        direccion: dirTrim, codigo_postal: fCP.value.trim(),
+      });
+    }
   }
 
   const seguimientoUrl = new URL('seguimiento.html', window.location.href);
@@ -3121,15 +3274,18 @@ checkoutBtn.addEventListener('click', async () => {
       msg += `• ${qty} x ${p.nombre} (${formatBadge(p)}) — ${euros(p.precio * qty)}%0A`;
     });
     msg += `%0ATotal: ${euros(cartTotal())}%0A%0ASeguimiento: ${encodeURIComponent(seguimientoUrl.toString())}`;
-    if (tipo === 'domicilio') msg += `%0A(Incluye 2€ de envío si corresponde — confirma tu dirección)`;
+    if (tipo === 'domicilio') {
+      msg += `%0A%0A${encodeURIComponent('Entregar a: ' + fNombreCliente.value.trim() + ' ' + fApellidoCliente.value.trim())}`;
+      msg += `%0A${encodeURIComponent('Dirección: ' + fDireccion.value.trim() + ' (CP ' + fCP.value.trim() + ')')}`;
+      msg += `%0A(Incluye 2€ de envío)`;
+    }
     window.open(`https://wa.me/34670503183?text=${msg}`, '_blank');
   }
 
   orderIdText.textContent = 'Pedido nº ' + orderId + ' · ' + tipoLabel(tipo);
   orderIdText2.textContent = orderId;
   renderQR(seguimientoUrl.toString(), qrBox);
-  cartItemsEl.style.display = 'none';
-  cartFooter.style.display = 'none';
+  cartBody.style.display = 'none';
   orderConfirm.style.display = 'block';
 
   cart = {};
@@ -3139,10 +3295,12 @@ checkoutBtn.addEventListener('click', async () => {
 
 newOrderBtn.addEventListener('click', () => {
   orderConfirm.style.display = 'none';
-  cartItemsEl.style.display = '';
-  cartFooter.style.display = '';
+  cartBody.style.display = '';
   document.querySelectorAll('input[name="tipoPedido"]').forEach(r => r.checked = false);
   document.querySelectorAll('.order-type-option').forEach(opt => opt.classList.remove('checked'));
+  domicilioFieldset.style.display = 'none';
+  fNombreCliente.value = ''; fApellidoCliente.value = ''; fDireccion.value = ''; fCP.value = '';
+  savedAddressSelect.style.display = 'none'; savedAddressSelect.innerHTML = '';
   contactValue.value = '';
   updateCartUI();
 });
