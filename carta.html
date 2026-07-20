@@ -338,7 +338,7 @@ main { padding: 40px 0 90px; }
   transition: border-color .2s var(--ease), transform .15s var(--ease), box-shadow .2s var(--ease), background .2s var(--ease);
   text-align: left;
 }
-.crypto-chip svg { width: 22px; height: 22px; flex-shrink: 0; }
+.crypto-chip .usdt-icon-wrap svg:first-child { width: 22px; height: 22px; flex-shrink: 0; }
 .crypto-chip .ci-text { display: flex; flex-direction: column; line-height: 1.15; }
 .crypto-chip:hover { transform: translateY(-1px); box-shadow: 0 8px 18px -12px rgba(0,0,0,0.3); }
 .crypto-chip[aria-pressed="true"] { border-color: var(--chip-accent, var(--gold)); background: var(--chip-tint, rgba(199,167,92,0.07)); box-shadow: 0 8px 18px -12px var(--chip-accent, rgba(199,167,92,0.5)); }
@@ -362,7 +362,7 @@ main { padding: 40px 0 90px; }
   -webkit-mask-composite: xor; mask-composite: exclude; opacity: 0.5; pointer-events: none;
 }
 .crypto-card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; position: relative; }
-.crypto-card-head svg { width: 36px; height: 36px; flex-shrink: 0; filter: drop-shadow(0 4px 10px rgba(0,0,0,0.35)); }
+.crypto-card-head .usdt-icon-wrap svg:first-child { width: 40px; height: 40px; flex-shrink: 0; filter: drop-shadow(0 4px 10px rgba(0,0,0,0.35)); }
 .crypto-card-head .cc-name { font-family: 'Fraunces', serif; font-size: 1.1rem; font-weight: 700; }
 .crypto-card-head .cc-network {
   font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 700; color: var(--chip-accent, var(--gold-light));
@@ -377,7 +377,7 @@ main { padding: 40px 0 90px; }
 .crypto-qr-wrap {
   background: #fff; border-radius: 16px; padding: 16px; display: flex; justify-content: center;
   margin: 0 auto 16px; position: relative; width: fit-content;
-  box-shadow: 0 14px 30px -16px rgba(0,0,0,0.5);
+  box-shadow: 0 14px 30px -16px rgba(0,0,0,0.5), 0 0 0 3px var(--chip-tint-dark, rgba(199,167,92,0.15));
 }
 .crypto-qr-wrap svg { width: 138px; height: 138px; display: block; }
 .crypto-wallet-row {
@@ -391,6 +391,33 @@ main { padding: 40px 0 90px; }
 }
 .crypto-wallet-row button:hover { transform: scale(1.04); }
 .crypto-note { font-size: 0.7rem; color: rgba(245,241,231,0.4); margin-top: 14px; position: relative; }
+
+/* ---------- ICONO USDT + INSIGNIA DE RED SUPERPUESTA ---------- */
+.usdt-icon-wrap { position: relative; flex-shrink: 0; display: inline-flex; }
+.usdt-icon-wrap .net-badge {
+  position: absolute; bottom: -3px; right: -3px; width: 15px; height: 15px; border-radius: 50%;
+  border: 2px solid #fff; display: flex; align-items: center; justify-content: center; overflow: hidden;
+}
+.crypto-card .usdt-icon-wrap .net-badge { border-color: #1C1F24; width: 18px; height: 18px; bottom: -4px; right: -4px; }
+
+.crypto-fee-row {
+  display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;
+  font-size: 0.72rem; color: rgba(245,241,231,0.55); position: relative; padding: 0 2px;
+}
+.crypto-fee-row b { color: rgba(245,241,231,0.85); font-weight: 700; }
+.crypto-expiry {
+  display: flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 16px; position: relative;
+  font-size: 0.74rem; color: var(--chip-accent, var(--gold-light)); font-weight: 700;
+  background: var(--chip-tint-dark, rgba(199,167,92,0.15)); border-radius: 999px; padding: 6px 14px; width: fit-content; margin-left: auto; margin-right: auto;
+}
+.crypto-expiry .dot-live {
+  width: 6px; height: 6px; border-radius: 50%; background: currentColor; animation: dotPulse 1.4s ease-in-out infinite;
+}
+@keyframes dotPulse { 0%,100% { opacity: 1; } 50% { opacity: 0.25; } }
+.crypto-verified {
+  display: flex; align-items: center; justify-content: center; gap: 5px; margin-top: 14px; position: relative;
+  font-size: 0.66rem; color: rgba(245,241,231,0.4);
+}
 .pay-spinner {
   width: 44px; height: 44px; border-radius: 50%; margin: 0 auto;
   border: 4px solid rgba(199,167,92,0.2); border-top-color: var(--gold);
@@ -3427,9 +3454,9 @@ paymentMethods.addEventListener('click', (e) => {
   } else if (metodoPago === 'cripto') {
     paymentFormArea.innerHTML = `
       <div class="crypto-select" id="cryptoSelect">
-        <button type="button" class="crypto-chip" data-crypto="usdt" aria-pressed="false" style="--chip-accent:#26A17B; --chip-tint:rgba(38,161,123,0.08);">${CRYPTO_ICONS.usdt}<span class="ci-text">USDT<span class="ci-sub">TRC20</span></span></button>
-        <button type="button" class="crypto-chip" data-crypto="bnb" aria-pressed="false" style="--chip-accent:#F0B90B; --chip-tint:rgba(240,185,11,0.08);">${CRYPTO_ICONS.bnb}<span class="ci-text">BNB<span class="ci-sub">BEP20</span></span></button>
-        <button type="button" class="crypto-chip" data-crypto="eth" aria-pressed="false" style="--chip-accent:#627EEA; --chip-tint:rgba(98,126,234,0.08);">${CRYPTO_ICONS.eth}<span class="ci-text">ETH<span class="ci-sub">ERC20</span></span></button>
+        <button type="button" class="crypto-chip" data-crypto="trc20" aria-pressed="false" style="--chip-accent:#EF3B32; --chip-tint:rgba(239,59,50,0.08);">${usdtIcon('trc20', 22)}<span class="ci-text">USDT<span class="ci-sub">TRC20</span></span></button>
+        <button type="button" class="crypto-chip" data-crypto="bep20" aria-pressed="false" style="--chip-accent:#F0B90B; --chip-tint:rgba(240,185,11,0.08);">${usdtIcon('bep20', 22)}<span class="ci-text">USDT<span class="ci-sub">BEP20</span></span></button>
+        <button type="button" class="crypto-chip" data-crypto="erc20" aria-pressed="false" style="--chip-accent:#627EEA; --chip-tint:rgba(98,126,234,0.08);">${usdtIcon('erc20', 22)}<span class="ci-text">USDT<span class="ci-sub">ERC20</span></span></button>
       </div>
       <div id="cryptoWalletBox"></div>`;
     payNowBtn.style.display = 'none';
@@ -3439,17 +3466,23 @@ paymentMethods.addEventListener('click', (e) => {
   payNowBtn.textContent = 'Confirmar pago';
 });
 
-// ---- Iconos e info de red por criptomoneda ----
-const CRYPTO_ICONS = {
-  usdt: `<svg width="30" height="30" viewBox="0 0 32 32"><circle cx="16" cy="16" r="16" fill="#26A17B"/><path d="M17.3 17.1v-.01c-.1.01-.63.04-1.8.04-.94 0-1.6-.03-1.83-.04v.02c-3.03-.13-5.29-.67-5.29-1.3 0-.65 2.26-1.18 5.29-1.3v2.06c.24.02.9.06 1.85.06 1.11 0 1.67-.05 1.78-.06v-2.06c3.02.13 5.28.66 5.28 1.3 0 .64-2.26 1.17-5.28 1.29zm0-2.8v-1.85h4.22V9.4H10.5v3.05h4.22v1.85c-3.43.16-6.01.83-6.01 1.64 0 .8 2.58 1.48 6.01 1.64v5.87h2.58v-5.87c3.42-.16 6-.83 6-1.64 0-.81-2.58-1.48-6-1.64z" fill="#fff"/></svg>`,
-  bnb: `<svg width="30" height="30" viewBox="0 0 32 32"><circle cx="16" cy="16" r="16" fill="#F0B90B"/><path d="M12.1 14.2 16 10.3l3.9 3.9 2.3-2.3L16 5.7l-6.2 6.2 2.3 2.3zM5.7 16l2.3-2.3L10.3 16l-2.3 2.3L5.7 16zm6.4 1.8L16 21.7l3.9-3.9 2.3 2.3-6.2 6.2-6.2-6.2 2.3-2.3zM21.7 16l2.3-2.3L26.3 16l-2.3 2.3-2.3-2.3zm-3.4 0L16 13.6 13.7 16l2.3 2.4L18.3 16z" fill="#fff"/></svg>`,
-  eth: `<svg width="30" height="30" viewBox="0 0 32 32"><circle cx="16" cy="16" r="16" fill="#627EEA"/><path d="M16.3 4v8.9l7.5 3.3z" fill="#fff" opacity=".6"/><path d="M16.3 4 8.7 16.2l7.6-3.3z" fill="#fff"/><path d="M16.3 21.9v6.1l7.5-10.4z" fill="#fff" opacity=".6"/><path d="M16.3 28v-6.1l-7.6-4.3z" fill="#fff"/><path d="M16.3 20.5 23.8 16 16.3 12.9z" fill="#fff" opacity=".2"/><path d="M8.7 16 16.3 20.5v-7.6z" fill="#fff" opacity=".6"/></svg>`,
+// ---- USDT sobre 3 redes distintas (misma moneda, distinta blockchain) ----
+const TETHER_ICON = `<svg width="30" height="30" viewBox="0 0 32 32"><circle cx="16" cy="16" r="16" fill="#26A17B"/><path d="M17.3 17.1v-.01c-.1.01-.63.04-1.8.04-.94 0-1.6-.03-1.83-.04v.02c-3.03-.13-5.29-.67-5.29-1.3 0-.65 2.26-1.18 5.29-1.3v2.06c.24.02.9.06 1.85.06 1.11 0 1.67-.05 1.78-.06v-2.06c3.02.13 5.28.66 5.28 1.3 0 .64-2.26 1.17-5.28 1.29zm0-2.8v-1.85h4.22V9.4H10.5v3.05h4.22v1.85c-3.43.16-6.01.83-6.01 1.64 0 .8 2.58 1.48 6.01 1.64v5.87h2.58v-5.87c3.42-.16 6-.83 6-1.64 0-.81-2.58-1.48-6-1.64z" fill="#fff"/></svg>`;
+const NETWORK_BADGES = {
+  trc20: `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="12" fill="#EF3B32"/><path d="M6 7.2 17.6 9l-2.7 9.8-5.9-7.2-3-2.7Zm.9.8 2.1 1.9 4.7 5.8 2-7.2-8.8-.5Z" fill="#fff"/></svg>`,
+  bep20: `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="12" fill="#F0B90B"/><path d="m9.5 10.6 2.5-2.5 2.5 2.5 1.5-1.5L12 5.6 8 9.6l1.5 1zM5.6 12 7 10.5 8.5 12 7 13.5zM9.5 13.4l2.5 2.5 2.5-2.5 1.5 1.5-4 4-4-4zM15.5 12 17 10.5l1.5 1.5-1.5 1.5zM13.5 12 12 10.5 10.5 12l1.5 1.5z" fill="#fff"/></svg>`,
+  erc20: `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="12" fill="#627EEA"/><path d="M12 3v6.4L17.5 12z" fill="#fff" opacity=".6"/><path d="M12 3 6.5 12 12 9.4z" fill="#fff"/><path d="M12 15.9V21l5.5-7.6z" fill="#fff" opacity=".6"/><path d="M12 21v-5.1L6.5 13.4z" fill="#fff"/></svg>`,
 };
+function usdtIcon(netKey, size) {
+  return `<span class="usdt-icon-wrap">${TETHER_ICON}<span class="net-badge">${NETWORK_BADGES[netKey]}</span></span>`;
+}
 const CRYPTO_INFO = {
-  usdt: { nombre: 'USDT · Tether', network: 'Red TRC20', accent: '#26A17B', glow: 'rgba(38,161,123,0.22)', soft: 'rgba(38,161,123,0.28)', tintDark: 'rgba(38,161,123,0.16)', rate: 1.08, symbol: 'USDT', prefix: 'T', charset: 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz123456789', len: 33 },
-  bnb: { nombre: 'BNB · BNB Smart Chain', network: 'Red BEP20', accent: '#F0B90B', glow: 'rgba(240,185,11,0.22)', soft: 'rgba(240,185,11,0.28)', tintDark: 'rgba(240,185,11,0.16)', rate: 0.0018, symbol: 'BNB', prefix: '0x', charset: '0123456789abcdef', len: 40 },
-  eth: { nombre: 'ETH · Ethereum', network: 'Red ERC20', accent: '#627EEA', glow: 'rgba(98,126,234,0.22)', soft: 'rgba(98,126,234,0.28)', tintDark: 'rgba(98,126,234,0.16)', rate: 0.00034, symbol: 'ETH', prefix: '0x', charset: '0123456789abcdef', len: 40 },
+  trc20: { network: 'Red TRC20 · Tron', accent: '#EF3B32', glow: 'rgba(239,59,50,0.22)', soft: 'rgba(239,59,50,0.28)', tintDark: 'rgba(239,59,50,0.16)', fee: '~1 USDT', prefix: 'T', charset: 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz123456789', len: 33 },
+  bep20: { network: 'Red BEP20 · BNB Smart Chain', accent: '#F0B90B', glow: 'rgba(240,185,11,0.22)', soft: 'rgba(240,185,11,0.28)', tintDark: 'rgba(240,185,11,0.16)', fee: '~0.3 USDT', prefix: '0x', charset: '0123456789abcdef', len: 40 },
+  erc20: { network: 'Red ERC20 · Ethereum', accent: '#627EEA', glow: 'rgba(98,126,234,0.22)', soft: 'rgba(98,126,234,0.28)', tintDark: 'rgba(98,126,234,0.16)', fee: '~2-6 USDT', prefix: '0x', charset: '0123456789abcdef', len: 40 },
 };
+
+let cryptoExpiryInterval = null;
 
 document.addEventListener('click', (e) => {
   const chip = e.target.closest('#cryptoSelect [data-crypto]');
@@ -3459,25 +3492,34 @@ document.addEventListener('click', (e) => {
 
   const info = CRYPTO_INFO[key];
   const addr = info.prefix + Array.from({length: info.len}, () => info.charset[Math.floor(Math.random() * info.charset.length)]).join('');
-  const cryptoAmount = (cartTotal() * info.rate).toFixed(key === 'usdt' ? 2 : 5);
+  const cryptoAmount = cartTotal().toFixed(2);
 
   const box = document.getElementById('cryptoWalletBox');
   box.innerHTML = `
     <div class="crypto-card" style="--crypto-glow:${info.glow}; --chip-accent:${info.accent}; --chip-accent-soft:${info.soft}; --chip-tint-dark:${info.tintDark}">
       <div class="crypto-card-head">
-        ${CRYPTO_ICONS[key]}
-        <div><div class="cc-name">${info.nombre}</div><div class="cc-network">${info.network}</div></div>
+        ${usdtIcon(key)}
+        <div><div class="cc-name">USDT · Tether</div><div class="cc-network">${info.network}</div></div>
       </div>
+      <div class="crypto-expiry" id="cryptoExpiry"><span class="dot-live"></span><span id="cryptoExpiryText">Expira en 15:00</span></div>
       <div class="crypto-amount-row">
         <span class="ca-label">Importe a enviar</span>
-        <span class="ca-value">${cryptoAmount} ${info.symbol}</span>
+        <span class="ca-value">${cryptoAmount} USDT</span>
       </div>
       <div class="crypto-qr-wrap" id="cryptoQrWrap"></div>
       <div class="crypto-wallet-row">
         <span class="cw-addr">${addr}</span>
         <button type="button" id="copyWalletBtn">Copiar</button>
       </div>
-      <p class="crypto-note">Cotización simulada · ${info.network} · No se realiza ningún cargo real.</p>
+      <div class="crypto-fee-row">
+        <span>Comisión de red estimada</span>
+        <b>${info.fee}</b>
+      </div>
+      <p class="crypto-note">Envía exactamente el importe indicado, solo por ${info.network}. Enviar por otra red puede perder los fondos.</p>
+      <div class="crypto-verified">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M12 2 4 5v6c0 5 3.4 9 8 11 4.6-2 8-6 8-11V5l-8-3z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="m9 12 2 2 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Dirección verificada · Pasarela simulada
+      </div>
     </div>`;
   renderQR(addr, document.getElementById('cryptoQrWrap'));
   document.getElementById('copyWalletBtn').addEventListener('click', () => {
@@ -3486,6 +3528,16 @@ document.addEventListener('click', (e) => {
     btn.textContent = '¡Copiado!';
     setTimeout(() => btn.textContent = 'Copiar', 1200);
   });
+
+  if (cryptoExpiryInterval) clearInterval(cryptoExpiryInterval);
+  let secondsLeft = 15 * 60;
+  cryptoExpiryInterval = setInterval(() => {
+    secondsLeft--;
+    const el = document.getElementById('cryptoExpiryText');
+    if (!el || secondsLeft < 0) { clearInterval(cryptoExpiryInterval); return; }
+    const m = Math.floor(secondsLeft / 60), s = secondsLeft % 60;
+    el.textContent = `Expira en ${m}:${s.toString().padStart(2,'0')}`;
+  }, 1000);
 
   payNowBtn.style.display = 'block';
   payNowBtn.textContent = 'He enviado el pago';
